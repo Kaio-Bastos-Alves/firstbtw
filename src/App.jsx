@@ -22,29 +22,33 @@ const Box = (props) => {
 // 2. Nosso sistema de movimento (agora atualiza baseado em uma variável global ou referência)
 // Vamos simplificar controlando a posição direto na entidade.
 const MoveBox = (entities, { time }) => {
-  // O sistema roda a 60fps, aqui podemos colocar lógicas contínuas se quisermos
+  if(entities.box.body[0] >= 400){
+    entities.box.body[0] = 0
+  }
+  else if (entities.box.body[0] <= 0){
+    entities.box.body[0] = 400
+  }
   return entities;
 };
 
 export default function App() {
   // Criamos uma referência para a posição da caixa para podermos mexer via teclado fora do engine
   const entities = {
-    box: { body: [50, 50], size: [60, 40], renderer: <Box /> },
+    box: { body: [50, 50], size: [50, 40], renderer: <Box /> },
   };
 
   // Usamos o useEffect para escutar o teclado na janela inteira do navegador
   useEffect(() => {
     const handleKeyDown = (e) => {
-      console.log(entities.box); // Vai aparecer sempre no console agora!
 
       if (e.key === "ArrowRight") {
         entities.box.body[0] += 15;
       } else if (e.key === "ArrowLeft") {
         entities.box.body[0] -= 15;
       } else if(e.key === "ArrowDown"){
-        entities.box.body[1] -= 15;
+        entities.box.body[1] += 150;
       } else if(e.key === "ArrowUp"){
-        entities.box.body[1] += 15;
+        entities.box.body[1] -= 15;
       }
     };
 
