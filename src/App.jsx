@@ -67,6 +67,7 @@ const MoveBullet = (entities) => {
       else if (entities[key].body[2] == "l") entities[key].body[0] -= 8;
       else if (entities[key].body[2] == "d") entities[key].body[1] += 8;
       else if (entities[key].body[2] == "u") entities[key].body[1] -= 8;
+      else entities[key].body[0] += 8;
 
       // DESTRUIÇÃO: Se a bala passar do limite da tela (400px), deleta do jogo
       if (entities[key].body[0] > 400 || entities[key].body[0] < 1 || entities[key].body[1] > 400 || entities[key].body[1] < 10) {
