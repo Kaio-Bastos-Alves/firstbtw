@@ -79,35 +79,42 @@ const MoveBullet = (entities) => {
   return entities;
 };
 
-const StartEnemy = (index, entities) =>{
-  //entities[]
+const LaunchEnemy = (entities) =>{
+  entities.global.time++;
+
+  if(entities.global.time > 400 - (entities.global.difficult * 100)){
+    entities.global.time = 0;
+    
+    const choose = Math.floor(Math.random() * 4)
+    
+    if(choose == 0){
+      entities.mob.launch=true
+    }
+  }
+  return entities
 }
 
 const SpawnMobs = (entities) => {
 
   const mob = entities.mob;
   if (mob && mob.body) {
-    mob.launch = false
     mob.body.backgroundColor = "red";
     mob.body[0] = 189
   }
 
   const mob2 = entities.mob2;
   if (mob2 && mob2.body) {
-    mob2.launch = false
     mob2.body.backgroundColor = "purple";
     mob2.body[1] = 169
   }
 
   const mob3 = entities.mob3;
   if (mob3 && mob3.body) {
-    mob3.launch = false
     mob3.body.backgroundColor = "blue";
     mob3.body[0] = 189
   }
   const mob4 = entities.mob4;
   if (mob4 && mob4.body) {
-    mob4.launch = false
     mob4.body.backgroundColor = "pink";
     mob4.body[1] = 169
   }
@@ -116,7 +123,7 @@ const SpawnMobs = (entities) => {
 
   if (mob.launch) {
     mob.body[1] += mob.vel || 1;
-    if (mob.body[1] > 145) { mob.body[1] = 0; mob.vel = Math.random() * value + sum }
+    if (mob.body[1] > 145) { mob.body[1] = 0; mob.vel = Math.random() * value + sum; mob.launch = false }
   }
   else {
     mob.body[1] = 0
@@ -153,19 +160,19 @@ export default function App() {
   const entities = {
     box: { body: [200, 200], size: [40, 40], renderer: <Box /> },
     bullet: { body: [20, 20], size: [20, 20], renderer: <Box /> },
-    mob: { body: [180, 200], size: [20, 20], renderer: <Box /> },
-    mob2: { body: [180, 200], size: [20, 20], renderer: <Box /> },
-    mob3: { body: [180, 200], size: [20, 20], renderer: <Box /> },
-    mob4: { body: [180, 200], size: [20, 20], renderer: <Box /> }
+    mob: { body: [180, 200], size: [20, 20],launch: false, renderer: <Box /> },
+    mob2: { body: [180, 200], size: [20, 20],launch: false, renderer: <Box /> },
+    mob3: { body: [180, 200], size: [20, 20],launch: false, renderer: <Box /> },
+    mob4: { body: [180, 200], size: [20, 20],launch: false, renderer: <Box /> },
   };
   const initialEntities = {
     box: { body: [180, 160], size: [40, 40], renderer: <Box /> },
-    mob: { body: [189, 0], size: [20, 20], renderer: <Box /> },
-    mob2: { body: [0, 169], size: [20, 20], renderer: <Box /> },
-    mob3: { body: [189, 380], size: [20, 20], renderer: <Box /> },
-    mob4: { body: [380, 0], size: [20, 20], renderer: <Box /> }
+    mob: { body: [189, 0], size: [20, 20],launch: false, renderer: <Box /> },
+    mob2: { body: [0, 169], size: [20, 20],launch: false, renderer: <Box /> },
+    mob3: { body: [189, 380], size: [20, 20],launch: false, renderer: <Box /> },
+    mob4: { body: [380, 0], size: [20, 20],launch: false, renderer: <Box /> },
+    global: { time: 0,index: 1, difficult: 1}
   };
-
   // Usamos o useEffect para escutar o teclado na janela inteira do navegador
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -202,7 +209,7 @@ export default function App() {
           margin: "0 auto",
           overflow: "hidden",
         }}
-        systems={[MoveBox, MoveBullet, SpawnMobs]}
+        systems={[MoveBox, MoveBullet, SpawnMobs,LaunchEnemy]}
         entities={initialEntities}
       />
     </div>
