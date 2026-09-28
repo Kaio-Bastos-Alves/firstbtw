@@ -14,7 +14,6 @@ const Box = (props) => {
         width: size[0],
         height: size[1],
         backgroundColor: body.backgroundColor || "white",
-
       }}
     />
   );
@@ -27,6 +26,7 @@ let bulletId = 0;
 const MoveBox = (entities, { input }) => {
   const Colors = ["blue", "black", "red", "purple", "white"]
   entities.box.body.backgroundColor = Colors[Math.floor(Math.random() * Colors.length)];
+  entities.box.body.difficult = 1;
   // up = u; down = d; left = l; right = r;
   const { payload } = input.find(x => x.name === "onKeyDown") || { payload: {} };
 
@@ -78,6 +78,10 @@ const MoveBullet = (entities) => {
 
   return entities;
 };
+
+const StartEnemy = (index, entities) =>{
+  //entities[]
+}
 
 const SpawnMobs = (entities) => {
 
