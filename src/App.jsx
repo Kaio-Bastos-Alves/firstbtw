@@ -6,6 +6,8 @@ import Player from './assets/Seta.png'
 import Bullet from './assets/bullet.png'
 import "./App.css";
 
+let bulletId = 0;
+let particleId = 0;
 
 // 1. Componente visual da caixinha
 const Box = (props) => {
@@ -35,6 +37,7 @@ const Box = (props) => {
   );
 };
 
+// 2. Componente visual para a vida do personagem
 const GameText = (props) => {
   const { value, color, x, y } = props;
   return (
@@ -61,6 +64,7 @@ const GameText = (props) => {
   );
 };
 
+// 3. Componente visual para textos
 const PointsText = (props) => {
   const { value, color, x, y, size } = props;
   return (
@@ -81,18 +85,44 @@ const PointsText = (props) => {
   );
 };
 
-let bulletId = 0;
-let particleId = 0;
-
-// 2. Nosso sistema de movimento (agora atualiza baseado em uma variável global ou referência)
-// Vamos simplificar controlando a posição direto na entidade.
 const MoveBox = (entities, { input }) => {
   entities.box.backgroundColor = 'transparent';
   entities.box.backgroundImage = Player
   entities.global.cooldown++
   // up = u; down = d; left = l; right = r;
   const { payload } = input.find(x => x.name === "onKeyDown") || { payload: {} };
-  if (payload.key === "r") { window.location.reload() }
+
+  if (payload.key === "r") {
+    entities.global.died = false;
+    entities.global.paused = true;
+    entities.healthText.value = 3;
+    if (entities.Points.value > 0) {
+      const novaPontuacao = entities.Points.value;
+
+      if (novaPontuacao > 0) {
+        // Adiciona a pontuação atual à lista existente
+        let recordes = entities.global.pointsValues;
+        recordes.push(novaPontuacao);
+
+        // Ordena do maior para o menor e mantém apenas os 3 primeiros (Top 3)
+        recordes.sort((a, b) => b - a);
+        recordes = recordes.slice(0, 3);
+
+        // Atualiza a global com os novos recordes ordenados
+        entities.global.pointsValues = recordes;
+      }
+    }
+    if (entities.global.updateScoreBoard) {
+      entities.global.updateScoreBoard([...entities.global.pointsValues]);
+    }
+
+    console.log(entities.global.pointsValues)
+    entities.Points.value = 0;
+  }
+
+  if (payload.key === " " && entities.global.paused) {
+    entities.global.paused = false;
+  }
 
   if (payload.key === "Escape") entities.global.paused = !entities.global.paused
 
@@ -110,8 +140,10 @@ const MoveBox = (entities, { input }) => {
   if (entities.box.body[1] >= 360) entities.box.body[1] = 360;
   if (entities.box.body[1] <= 0) entities.box.body[1] = 0;
 
-  // DISPARAR: Se apertar Espaço, criamos uma bala nova
-  if (payload.key === " " && entities.global.cooldown > 60) {
+
+  // DISPARAR: Se apertar Espaço e já ter passado 60 frames (1 seg) de cooldown, enfim, criamos uma bala nova
+  if (payload.key === " " && entities.global.cooldown > 20) {
+
     bulletId++;
     entities.global.cooldown = 0
     const newBulletKey = `bullet_${bulletId}`;
@@ -246,29 +278,28 @@ const CheckCollisions = (entities) => {
 const LaunchEnemy = (entities) => {
   entities.global.time++;
   if (entities.global.died || entities.global.paused) { return entities; }
-  if (entities.global.time > 400 - (entities.global.difficult * 100)) {
-    entities.global.time = 0;
 
-    const choose = Math.floor(Math.random() * 4)
+  // 1. Criamos dinamicamente o tempo alvo usando a dificuldade
+  // Quanto maior o difficult (ex: 3), menor é o tempo base, acelerando o jogo
+  const baseTime = 200 + Math.random() * 300; 
+  const tempoAlvo = baseTime - (entities.global.difficult * 50);
 
-    if (choose == 0) {
-      entities.mob.launch = true
-    }
-    if (choose == 1) {
-      entities.mob2.launch = true
-    }
-    if (choose == 2) {
-      entities.mob3.launch = true
-    }
-    if (choose == 3) {
-      entities.mob4.launch = true
+  if (entities.global.time > Math.max(50, tempoAlvo)) {
+    entities.global.time = 0; // Reseta o cronômetro
+
+    const Pos = [entities.mob, entities.mob2, entities.mob3, entities.mob4];
+    const choosenOne = Pos[Math.floor(Math.random() * Pos.length)];
+    
+    // Opcional: só lança se o mob já não estiver ativo (evita sobrescrever um mob que já está a andar)
+    if (!choosenOne.launch) {
+      choosenOne.launch = true;
     }
   }
-  return entities
-}
+  
+  return entities;
+};
 
 const SpawnMobs = (entities) => {
-
 
   //PRIMEIRO
   const mob = entities.mob;
@@ -449,13 +480,13 @@ const UpdateParticles = (entities) => {
       }
     }
   });
-
   return entities;
 };
 
 export default function App() {
   const [isShaking, setIsShaking] = useState(false);
   const [difficult, setDifficult] = useState(3);
+  const [record, setRecord] = useState([0,0,0])
   const entities = {
     box: { body: [200, 200], size: [40, 40], renderer: <Box /> },
     bullet: { body: [20, 20], size: [10, 10], renderer: <Box /> },
@@ -471,13 +502,12 @@ export default function App() {
     mob3: { body: [189, 380], size: [20, 20], launch: false, renderer: <Box /> },
     mob4: { body: [380, 0], size: [20, 20], launch: false, renderer: <Box /> },
     global: {
-      time: 0, index: 1, difficult: difficult, died: false, paused: true, triggerShake: () => {
-        setIsShaking(true);
-        // Desliga a animação depois de 300ms (tempo que dura o keyframes)
-        setTimeout(() => setIsShaking(false), 300);
-      }, cooldown: 0,
+      time: 0, cooldown: 0, index: 1, difficult: difficult, died: false, paused: true,
+      triggerShake: () => { setIsShaking(true); setTimeout(() => setIsShaking(false), 300); },
+      updateScoreBoard: (props) => {setRecord(props)},
+      pointsValues: [],
     },
-    healthText: { value: difficult, color: "#cc2e2e", x: 20, y: 20, renderer: <GameText /> },
+    healthText: { value: 3, color: "#cc2e2e", x: 20, y: 20, renderer: <GameText /> },
     Points: { value: 0, color: "#ffffff", x: 320, y: 20, renderer: <PointsText /> },
     boxShadow: { body: [0, 0], size: [400, 400], backgroundColor: "transparent", renderer: <Box /> },
     PausedText: { value: "PAUSED", color: "#ffffff00", x: 130, y: 170, size: 40, renderer: <PointsText /> },
@@ -509,26 +539,52 @@ export default function App() {
 
   return (
     <div style={{ textAlign: "center", marginTop: "40px", marginBottom: "10px" }}>
+      
+      {/* Contendedor geral para alinhar o jogo e o pódio lado a lado */}
+      <div style={{ display: "flex", justifyContent: "center", alignItems: "flex-start", gap: "20px" }}>
+        
+        {/* Jogo */}
+        <div className={isShaking ? "screen-shake" : ""} style={{ display: "inline-block" }}>
+          <GameEngine
+            key={difficult}
+            style={{
+              width: 400,
+              height: 400,
+              backgroundColor: "#222",
+              position: "relative",
+              overflow: "hidden",
+            }}
+            systems={[MoveBox, MoveBullet, SpawnMobs, LaunchEnemy, CheckCollisions, Paused, UpdateParticles]}
+            entities={initialEntities}
+          />
+        </div>
 
+        {/* Placar Top 3 ao lado */}
+        <div style={{ 
+          backgroundColor: "#222", 
+          padding: "20px", 
+          borderRadius: "8px", 
+          color: "white",
+          fontFamily: '"Press Start 2P", system-ui',
+          fontSize: "14px",
+          textAlign: "left",
+          minWidth: "150px"
+        }}>
+          <p style={{ margin: "0 0 15px 0", color: "#ffd700" }}>TOP 3</p>
+          <ul style={{ paddingLeft: "20px", margin: 0, display: "flex", flexDirection: "column", gap: "10px" }}>
+            {record.map((score, index) => (
+              <li key={index}>
+                {index + 1}º - {score} pts
+              </li>
+            ))}
+          </ul>
+        </div>
 
-      <div className={isShaking ? "screen-shake" : ""} style={{ display: "inline-block" }}>
-        <GameEngine
-          style={{
-            width: 400,
-            height: 400,
-            backgroundColor: "#222",
-            position: "relative",
-            margin: "0 auto",
-            overflow: "hidden",
-          }}
-          systems={[MoveBox, MoveBullet, SpawnMobs, LaunchEnemy, CheckCollisions, Paused, UpdateParticles]}
-          entities={initialEntities}
-        />
       </div>
       <div className="Buttons">
-        <button className="button" onClick={() => setDifficult(1)}>1</button>
-        <button className="button" onClick={() => setDifficult(2)}>2</button>
-        <button className="button" onClick={() => setDifficult(3)}>3</button>
+        <button className="button-a" onClick={() => setDifficult(1)}>1</button>
+        <button className="button-l" onClick={() => setDifficult(2)}>2</button>
+        <button className="button-v" onClick={() => setDifficult(3)}>3</button>
       </div>
     </div>
   );
