@@ -1,10 +1,15 @@
 import "regenerator-runtime/runtime";
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { GameEngine } from "react-game-engine";
+import HeartIcon from './assets/heart.png'
+import Player from './assets/Seta.png'
+import Bullet from './assets/bullet.png'
+import "./App.css";
+
 
 // 1. Componente visual da caixinha
 const Box = (props) => {
-  const { size, body } = props;
+  const { size, body, backgroundColor, backgroundImage } = props;
   return (
     <div
       style={{
@@ -13,28 +18,91 @@ const Box = (props) => {
         top: body[1],
         width: size[0],
         height: size[1],
-        backgroundColor: body.backgroundColor || "white",
+
+        backgroundColor: backgroundImage ? 'transparent' : backgroundColor || "white",
+        backgroundImage: backgroundImage ? `url(${backgroundImage})` : "none",
+        backgroundSize: "contain",
+        backgroundRepeat: "no-repeat",
+        backgroundPosition: "center",
+        // ====== 3 PROPRIEDADES QUE CORRIGEM O PNG =======
+        imageRendering: "pixelated", // CORREÇÃO PARA PIXEL ART: Mantém as bordas nítidas sem borrar
+        mixBlendMode: "normal", // Garante que o canal alfa (transparência) renderize corretamente
+        // ===============================================
+
+        transform: `rotate(${body.angle}deg)`,
       }}
     />
   );
 };
 
+const GameText = (props) => {
+  const { value, color, x, y } = props;
+  return (
+    <div style={{ position: "absolute", left: x, top: y, display: "flex", alignItems: "center", gap: "1px" }}>
+      {/* Ícone do coração */}
+      <img
+        src={HeartIcon}
+        alt="Coração"
+        style={{ width: "40px", height: "40px", imageRendering: "pixelated" }}
+      />
+      <span style={{
+        color: color || "white",
+        fontSize: "30px",
+        fontWeight: "bold",
+        // Modificado para garantir fallbacks retro caso o navegador demore 1ms a mais para montar
+        fontFamily: '"Press Start 2P", system-ui',
+        imageRendering: "pixelated",
+        fontSmooth: "never",
+        WebkitFontSmoothing: "none"
+      }}>
+        {value}
+      </span>
+    </div>
+  );
+};
+
+const PointsText = (props) => {
+  const { value, color, x, y, size } = props;
+  return (
+    <div style={{ position: "absolute", left: x, top: y, display: "flex", alignItems: "center", gap: "1px" }}>
+      <span style={{
+        color: color || "white",
+        fontSize: size ? size : "20px",
+        fontWeight: "bold",
+        // Modificado para garantir fallbacks retro caso o navegador demore 1ms a mais para montar
+        fontFamily: '"Press Start 2P", system-ui',
+        imageRendering: "pixelated",
+        fontSmooth: "never",
+        WebkitFontSmoothing: "none"
+      }}>
+        {value}
+      </span>
+    </div>
+  );
+};
+
 let bulletId = 0;
+let particleId = 0;
 
 // 2. Nosso sistema de movimento (agora atualiza baseado em uma variável global ou referência)
 // Vamos simplificar controlando a posição direto na entidade.
 const MoveBox = (entities, { input }) => {
-  const Colors = ["blue", "black", "red", "purple", "white"]
-  entities.box.body.backgroundColor = Colors[Math.floor(Math.random() * Colors.length)];
-  entities.box.body.difficult = 1;
+  entities.box.backgroundColor = 'transparent';
+  entities.box.backgroundImage = Player
+  entities.global.cooldown++
   // up = u; down = d; left = l; right = r;
   const { payload } = input.find(x => x.name === "onKeyDown") || { payload: {} };
+  if (payload.key === "r") { window.location.reload() }
+
+  if (payload.key === "Escape") entities.global.paused = !entities.global.paused
+
+  if (entities.global.died || entities.global.paused) { return entities; }
 
   // Movimentação do Box
-  if (payload.key === "ArrowRight") { entities.box.body.direction = "r"; }
-  if (payload.key === "ArrowLeft") { entities.box.body.direction = "l"; }
-  if (payload.key === "ArrowDown") { entities.box.body.direction = "d"; }
-  if (payload.key === "ArrowUp") { entities.box.body.direction = "u"; }
+  if (payload.key === "ArrowRight") { entities.box.body.direction = "r"; entities.box.body.angle = 0; }
+  else if (payload.key === "ArrowLeft") { entities.box.body.direction = "l"; entities.box.body.angle = 180; }
+  else if (payload.key === "ArrowDown") { entities.box.body.direction = "d"; entities.box.body.angle = 90; }
+  else if (payload.key === "ArrowUp") { entities.box.body.direction = "u"; entities.box.body.angle = -90; }
 
   // Limites da tela para o Box
   if (entities.box.body[0] >= 360) entities.box.body[0] = 360;
@@ -43,14 +111,37 @@ const MoveBox = (entities, { input }) => {
   if (entities.box.body[1] <= 0) entities.box.body[1] = 0;
 
   // DISPARAR: Se apertar Espaço, criamos uma bala nova
-  if (payload.key === " ") {
+  if (payload.key === " " && entities.global.cooldown > 60) {
     bulletId++;
+    entities.global.cooldown = 0
     const newBulletKey = `bullet_${bulletId}`;
-    console.log(entities.box.body.direction)
+    const bulletBody = [
+      entities.box.body[0] + 15,
+      entities.box.body[1] + 13,
+      entities.box.body.direction
+    ];
+    if (bulletBody[2] == "u") {
+      bulletBody.angle = 0
+    }
+    else if (bulletBody[2] == "d") {
+      bulletBody.angle = -180
+    }
+    else if (bulletBody[2] == "r") {
+      bulletBody.angle = 90
+    }
+    else if (bulletBody[2] == "l") {
+      bulletBody.angle = -90
+    }
+    else {
+      bulletBody[2] = "r"
+      bulletBody.angle = 90
+    }
+
     // Inicia a bala exatamente no centro/frente do jogador
     entities[newBulletKey] = {
-      body: [entities.box.body[0] + 15, entities.box.body[1] + 13, entities.box.body.direction], // x (frente), y (meio)
+      body: bulletBody, // x (frente), y (meio)
       size: [10, 10], // Bala menorzinha
+      backgroundImage: Bullet,
       renderer: <Box />,
     };
   }
@@ -60,9 +151,12 @@ const MoveBox = (entities, { input }) => {
 
 const MoveBullet = (entities) => {
   // Procura por todas as entidades que começam com "bullet_"
+  if (entities.global.died || entities.global.paused) { return entities; }
+
   Object.keys(entities).forEach((key) => {
     if (key.startsWith("bullet_")) {
-      // Move a bala para a direita
+      // Move a bala para a direção recebida do 
+
       if (entities[key].body[2] == "r") entities[key].body[0] += 8;
       else if (entities[key].body[2] == "l") entities[key].body[0] -= 8;
       else if (entities[key].body[2] == "d") entities[key].body[1] += 8;
@@ -79,16 +173,95 @@ const MoveBullet = (entities) => {
   return entities;
 };
 
-const LaunchEnemy = (entities) =>{
-  entities.global.time++;
+const CheckCollisions = (entities) => {
+  Object.keys(entities).forEach((bulletKey) => {
+    if (bulletKey.startsWith("bullet_")) {
+      const bullet = entities[bulletKey];
+      const direction = bullet.body[2]; // Direção salva no índice 2 da bala
+      let targetEnemyKey = null;
 
-  if(entities.global.time > 400 - (entities.global.difficult * 100)){
+      // Filtra dinamicamente para testar a colisão apenas com o inimigo daquele respectivo lado
+      if (direction === "u") targetEnemyKey = "mob";  // Bala para cima -> Inimigo vindo de cima (red)
+      if (direction === "l") targetEnemyKey = "mob2"; // Bala para direita -> Inimigo vindo da esquerda (purple)
+      if (direction === "d") targetEnemyKey = "mob3"; // Bala para baixo -> Inimigo vindo de baixo (blue)
+      if (direction === "r") targetEnemyKey = "mob4"; // Bala para esquerda -> Inimigo vindo da direita (pink)
+
+      const enemy = entities[targetEnemyKey];
+
+      // A colisão só é processada se o inimigo alvo estiver ativo no mapa
+      if (enemy && enemy.launch) {
+        const bX = bullet.body[0];
+        const bY = bullet.body[1];
+        const bW = bullet.size[0];
+        const bH = bullet.size[1];
+
+        const eX = enemy.body[0];
+        const eY = enemy.body[1];
+        const eW = enemy.size[0];
+        const eH = enemy.size[1];
+
+        // Lógica matemática retangular AABB
+        if (
+          bX < eX + eW &&
+          bX + bW > eX &&
+          bY < eY + eH &&
+          bY + bH > eY
+        ) {
+          for (let i = 0; i < 40; i++) {
+            particleId++;
+            const pKey = `particle_${particleId}`;
+
+            // Sorteia direções espalhadas (para cima, baixo, esquerda, direita)
+            let velX = (Math.random() - 0.5) * 6;
+            let velY = (Math.random() - 0.5) * 6;
+
+            let color = ""
+            if (entities[bulletKey].body[2] === "u") { color = "#ff0c0c" }
+            if (entities[bulletKey].body[2] === "d") { color = "#0c10ff" }
+            if (entities[bulletKey].body[2] === "l") { color = "#a0fc0d" }
+            if (entities[bulletKey].body[2] === "r") { color = "#ff0ceb" }
+
+            entities[pKey] = {
+              body: [eX, eY, velX, velY], // X, Y, VelocidadeX, VelocidadeY
+              size: [2, 2],              // Partícula bem pequenininha
+              backgroundColor: color,
+              life: (0.4 + Math.random()) * 20,                  // Vai durar 20 frames na tela
+              renderer: <Box />
+            };
+          }
+
+          delete entities[bulletKey]; // Destrói a entidade da bala
+          enemy.launch = false;       // Torna falso o launch do mob afetado
+          entities.Points.value++;
+
+
+        }
+      }
+    }
+  });
+
+  return entities;
+};
+
+const LaunchEnemy = (entities) => {
+  entities.global.time++;
+  if (entities.global.died || entities.global.paused) { return entities; }
+  if (entities.global.time > 400 - (entities.global.difficult * 100)) {
     entities.global.time = 0;
-    
+
     const choose = Math.floor(Math.random() * 4)
-    
-    if(choose == 0){
-      entities.mob.launch=true
+
+    if (choose == 0) {
+      entities.mob.launch = true
+    }
+    if (choose == 1) {
+      entities.mob2.launch = true
+    }
+    if (choose == 2) {
+      entities.mob3.launch = true
+    }
+    if (choose == 3) {
+      entities.mob4.launch = true
     }
   }
   return entities
@@ -96,82 +269,220 @@ const LaunchEnemy = (entities) =>{
 
 const SpawnMobs = (entities) => {
 
+
+  //PRIMEIRO
   const mob = entities.mob;
   if (mob && mob.body) {
-    mob.body.backgroundColor = "red";
+    if (mob.launch) mob.backgroundColor = "#ff0000";
+    else mob.backgroundColor = "#381f1f"
     mob.body[0] = 189
   }
 
+  //SEGUNDO
   const mob2 = entities.mob2;
   if (mob2 && mob2.body) {
-    mob2.body.backgroundColor = "purple";
+    if (mob2.launch) mob2.backgroundColor = "#33ff00";
+    else mob2.backgroundColor = "#35532e"
     mob2.body[1] = 169
   }
 
+  //TERCEIRO
   const mob3 = entities.mob3;
   if (mob3 && mob3.body) {
-    mob3.body.backgroundColor = "blue";
+    if (mob3.launch) mob3.backgroundColor = "#0008ff";
+    else mob3.backgroundColor = "#1f2038";
     mob3.body[0] = 189
   }
+
+  //QUARTO
   const mob4 = entities.mob4;
   if (mob4 && mob4.body) {
-    mob4.body.backgroundColor = "pink";
+    if (mob4.launch) mob4.backgroundColor = "#dd00ff";
+    else mob4.backgroundColor = "#564159"
     mob4.body[1] = 169
   }
-  const value = 1.2
-  const sum = 0.2
 
+
+  if (entities.global.died || entities.global.paused) { return entities }
+
+
+  var value = 1.5
+  if (entities.global.difficult == 1) { value = 1.2 }
+  else if (entities.global.difficult == 2) { value = 1.6 }
+  else if (entities.global.difficult == 3) { value = 2.1 }
+
+  var sum = 0.4
+
+  if (entities.global.difficult == 1) { sum = 0.4 }
+  else if (entities.global.difficult == 2) { sum = 0.7 }
+  else if (entities.global.difficult == 3) { sum = 1.0 }
+
+  const LoseLife = () => {
+    entities.healthText.value--;
+    entities.global.triggerShake()
+    for (let i = 0; i < 20; i++) {
+      particleId++;
+      const pKey = `particle_${particleId}`;
+
+      // Sorteia direções espalhadas (para cima, baixo, esquerda, direita)
+      let velX = (Math.random() - 0.5) * 6;
+      let velY = (Math.random() - 0.5) * 6;
+
+      let color = "red"
+
+      entities[pKey] = {
+        body: [40, 40, velX, velY], // X, Y, VelocidadeX, VelocidadeY
+        size: [4, 4],              // Partícula bem pequenininha
+        backgroundColor: color,
+        life: (0.4 + Math.random()) * 20,                  // Vai durar 20 frames na tela
+        renderer: <Box />
+      };
+    }
+
+  }
+
+  //PRIMEIRO
   if (mob.launch) {
     mob.body[1] += mob.vel || 1;
-    if (mob.body[1] > 145) { mob.body[1] = 0; mob.vel = Math.random() * value + sum; mob.launch = false }
+    mob.vel = Math.random() * value + sum;
+    if (mob.body[1] > 145) {
+      mob.launch = false;
+      mob.body[1] = 0;
+      mob.vel = Math.random() * value + sum;
+      LoseLife()
+    }
   }
   else {
     mob.body[1] = 0
   }
 
+  //SEGUNDO
   if (mob2.launch) {
     mob2.body[0] += mob2.vel || 1;
-    if (mob2.body[0] > 158) { mob2.body[0] = 0; mob2.vel = Math.random() * value + sum }
+    mob2.vel = Math.random() * value + sum;
+    if (mob2.body[0] > 158) {
+      mob2.launch = false;
+      mob2.body[0] = 0;
+      mob2.vel = Math.random() * value + sum;
+      LoseLife()
+    }
   } else {
     mob2.body[0] = 0
   }
 
+  //TERCEIRO
   if (mob3.launch) {
     mob3.body[1] -= mob3.vel || 1;
-    if (mob3.body[1] < 200) { mob3.body[1] = 380; mob3.vel = Math.random() * value + sum }
+    mob3.vel = Math.random() * value + sum;
+    if (mob3.body[1] < 200) {
+      mob3.launch = false;
+      mob3.body[1] = 380;
+      mob3.vel = Math.random() * value + sum;
+      LoseLife()
+    }
   } else {
     mob3.body[1] = 380
   }
 
+  //QUARTO
   if (mob4.launch) {
     mob4.body[0] -= mob4.vel || 1;
-    if (mob4.body[0] < 220) { mob4.body[0] = 380; mob4.vel = Math.random() * value + sum }
+    mob4.vel = Math.random() * value + sum;
+    if (mob4.body[0] < 220) {
+      mob4.body[0] = 380;
+      mob4.vel = Math.random() * value + sum;
+      mob4.launch = false;
+      LoseLife()
+    }
   }
   else {
     mob4.body[0] = 380
   }
 
+  if (entities.healthText.value <= 0) {
+    entities.global.died = true;
+    entities.PausedText.value = "DIED"
+  }
+
   return entities;
 };
 
+const Paused = (entities) => {
+  if (entities.global.died) {
+    entities.boxShadow.backgroundColor = "rgba(14, 13, 13, 0.5)"
+    entities.PausedText.color = "#ffffff"
+    entities.PausedText.value = "DIED"
+    entities.deadText.color = "#ffffff"
+    entities.PausedText.x = 130
+    return entities
+  }
+  else if (entities.global.paused) {
+    entities.boxShadow.backgroundColor = "rgba(14, 13, 13, 0.5)"
+    entities.PausedText.color = "#ffffff"
+    entities.PausedText.x = 90
+    entities.PausedText.value = "PAUSED"
+    entities.deadText.color = "rgba(0,0,0,0)"
+    return entities
+  }
+  else {
+    entities.boxShadow.backgroundColor = "rgba(14, 13, 13, 0.0)"
+    entities.PausedText.color = "#ffffff00"
+    return entities;
+  }
+}
+
+const UpdateParticles = (entities) => {
+  Object.keys(entities).forEach((key) => {
+    if (key.startsWith("particle_")) {
+      let p = entities[key];
+
+      // Move a partícula baseada na velocidade sorteada
+      p.body[0] += p.body[2]; // soma velX
+      p.body[1] += p.body[3]; // soma velY
+
+      // Diminui o tempo de vida dela a cada frame
+      p.life--;
+
+      // Se o tempo acabou, remove do jogo
+      if (p.life <= 0) {
+        delete entities[key];
+      }
+    }
+  });
+
+  return entities;
+};
 
 export default function App() {
-  // Criamos uma referência para a posição da caixa para podermos mexer via teclado fora do engine
+  const [isShaking, setIsShaking] = useState(false);
+  const [difficult, setDifficult] = useState(3);
   const entities = {
     box: { body: [200, 200], size: [40, 40], renderer: <Box /> },
-    bullet: { body: [20, 20], size: [20, 20], renderer: <Box /> },
-    mob: { body: [180, 200], size: [20, 20],launch: false, renderer: <Box /> },
-    mob2: { body: [180, 200], size: [20, 20],launch: false, renderer: <Box /> },
-    mob3: { body: [180, 200], size: [20, 20],launch: false, renderer: <Box /> },
-    mob4: { body: [180, 200], size: [20, 20],launch: false, renderer: <Box /> },
+    bullet: { body: [20, 20], size: [10, 10], renderer: <Box /> },
+    mob: { body: [180, 200], size: [20, 20], launch: false, renderer: <Box /> },
+    mob2: { body: [180, 200], size: [20, 20], launch: false, renderer: <Box /> },
+    mob3: { body: [180, 200], size: [20, 20], launch: false, renderer: <Box /> },
+    mob4: { body: [180, 200], size: [20, 20], launch: false, renderer: <Box /> },
   };
   const initialEntities = {
     box: { body: [180, 160], size: [40, 40], renderer: <Box /> },
-    mob: { body: [189, 0], size: [20, 20],launch: false, renderer: <Box /> },
-    mob2: { body: [0, 169], size: [20, 20],launch: false, renderer: <Box /> },
-    mob3: { body: [189, 380], size: [20, 20],launch: false, renderer: <Box /> },
-    mob4: { body: [380, 0], size: [20, 20],launch: false, renderer: <Box /> },
-    global: { time: 0,index: 1, difficult: 1}
+    mob: { body: [189, 0], size: [20, 20], launch: false, renderer: <Box /> },
+    mob2: { body: [0, 169], size: [20, 20], launch: false, renderer: <Box /> },
+    mob3: { body: [189, 380], size: [20, 20], launch: false, renderer: <Box /> },
+    mob4: { body: [380, 0], size: [20, 20], launch: false, renderer: <Box /> },
+    global: {
+      time: 0, index: 1, difficult: difficult, died: false, paused: true, triggerShake: () => {
+        setIsShaking(true);
+        // Desliga a animação depois de 300ms (tempo que dura o keyframes)
+        setTimeout(() => setIsShaking(false), 300);
+      }, cooldown: 0,
+    },
+    healthText: { value: difficult, color: "#cc2e2e", x: 20, y: 20, renderer: <GameText /> },
+    Points: { value: 0, color: "#ffffff", x: 320, y: 20, renderer: <PointsText /> },
+    boxShadow: { body: [0, 0], size: [400, 400], backgroundColor: "transparent", renderer: <Box /> },
+    PausedText: { value: "PAUSED", color: "#ffffff00", x: 130, y: 170, size: 40, renderer: <PointsText /> },
+    deadText: { value: "Press R to restart.", color: "#ffffff", x: 120, y: 220, size: 10, renderer: <PointsText /> },
+
   };
   // Usamos o useEffect para escutar o teclado na janela inteira do navegador
   useEffect(() => {
@@ -197,21 +508,28 @@ export default function App() {
   }, []);
 
   return (
-    <div style={{ textAlign: "center", marginTop: "50px" }}>
-      <h1>Meu Primeiro Jogo em React</h1>
+    <div style={{ textAlign: "center", marginTop: "40px", marginBottom: "10px" }}>
 
-      <GameEngine
-        style={{
-          width: 400,
-          height: 400,
-          backgroundColor: "#222",
-          position: "relative",
-          margin: "0 auto",
-          overflow: "hidden",
-        }}
-        systems={[MoveBox, MoveBullet, SpawnMobs,LaunchEnemy]}
-        entities={initialEntities}
-      />
+
+      <div className={isShaking ? "screen-shake" : ""} style={{ display: "inline-block" }}>
+        <GameEngine
+          style={{
+            width: 400,
+            height: 400,
+            backgroundColor: "#222",
+            position: "relative",
+            margin: "0 auto",
+            overflow: "hidden",
+          }}
+          systems={[MoveBox, MoveBullet, SpawnMobs, LaunchEnemy, CheckCollisions, Paused, UpdateParticles]}
+          entities={initialEntities}
+        />
+      </div>
+      <div className="Buttons">
+        <button className="button" onClick={() => setDifficult(1)}>1</button>
+        <button className="button" onClick={() => setDifficult(2)}>2</button>
+        <button className="button" onClick={() => setDifficult(3)}>3</button>
+      </div>
     </div>
   );
 }
