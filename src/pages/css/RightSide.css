@@ -1,0 +1,80 @@
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
+.Buttons {
+  display: flex;
+  flex-direction: row;
+  gap: 1rem;
+  justify-content: center; /* Centraliza os botões horizontalmente */
+  margin-top: 10px;
+}
+
+.button-a{
+  border: 1px solid #eee457;
+  width: 30px;
+  height: 30px;
+  border-radius: 45px;
+  transition: all 0.3s;
+  cursor: pointer;
+  background: white;
+  padding: 5px;
+  font-size: 12px;
+  font-weight: 550;
+  color: #000000;
+}
+.button-a:hover{
+  font-size: 15px;
+  background-color: #eee457;
+}
+
+.button-l{
+  border: 1px solid #eea057;
+  width: 30px;
+  height: 30px;
+  border-radius: 45px;
+  transition: all 0.3s;
+  cursor: pointer;
+  background: white;
+  padding: 5px;
+  font-size: 12px;
+  font-weight: 550;
+  color: #000000;
+}
+.button-l:hover{
+  background-color: #eea057;
+  font-size: 15px;
+}
+
+
+.button-v{
+  border: 1px solid #ee5757;
+  width: 30px;
+  height: 30px;
+  border-radius: 45px;
+  transition: all 0.3s;
+  cursor: pointer;
+  background: white;
+  padding: 5px;
+  font-size: 12px;
+  font-weight: 550;
+  color: #000000;
+}
+.button-v:hover{
+  background-color: #ee5757;
+  font-size: 15px;
+}
+
+
+/*Tremilique da tela*/
+
+@keyframes shake {
+  0% { transform: translate(0, 0); }
+  20% { transform: translate(-4px, 4px); }
+  40% { transform: translate(-3px, -3px); }
+  60% { transform: translate(3px, 2px); }
+  80% { transform: translate(2px, -2px); }
+  100% { transform: translate(0, 0); }
+}
+
+.screen-shake {
+  animation: shake 0.1s ease;
+}
