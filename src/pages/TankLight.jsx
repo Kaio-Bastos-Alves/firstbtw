@@ -1,6 +1,9 @@
 import "regenerator-runtime/runtime";
 import React, { useRef } from "react";
 import { GameEngine } from "react-game-engine";
+import HeartIcon from '../assets/heart.png'
+
+let particleId = 0;
 
 // --- 1. COMPONENTE VISUAL DO PLAYER ---
 const PlayerRenderer = (props) => {
@@ -103,6 +106,61 @@ const TextRenderer = (props) => {
     );
 };
 
+const LifeRenderer = (props) => {
+    const { value, color, x, y } = props;
+    return (
+        <div style={{ position: "absolute", left: x, top: y, display: "flex", alignItems: "center", gap: "1px" }}>
+            {/* Ícone do coração */}
+            <img
+                src={HeartIcon}
+                alt="Coração"
+                style={{ width: "40px", height: "40px", imageRendering: "pixelated" }}
+            />
+            <span style={{
+                color: color || "white",
+                fontSize: "30px",
+                fontWeight: "bold",
+                // Modificado para garantir fallbacks retro caso o navegador demore 1ms a mais para montar
+                fontFamily: '"Press Start 2P", system-ui',
+                imageRendering: "pixelated",
+                fontSmooth: "never",
+                WebkitFontSmoothing: "none"
+            }}>
+                {value}
+            </span>
+        </div>
+    );
+};
+
+const Box = (props) => {
+    const { size, body, backgroundColor, backgroundImage } = props;
+    return (
+        <div
+            style={{
+                position: "absolute",
+                left: body[0],
+                top: body[1],
+                width: size[0],
+                height: size[1],
+
+                backgroundColor: backgroundImage ? 'transparent' : backgroundColor || "white",
+                backgroundImage: backgroundImage ? `url(${backgroundImage})` : "none",
+                backgroundSize: "contain",
+                backgroundRepeat: "no-repeat",
+                backgroundPosition: "center",
+                // ====== 3 PROPRIEDADES QUE CORRIGEM O PNG =======
+                imageRendering: "pixelated", // CORREÇÃO PARA PIXEL ART: Mantém as bordas nítidas sem borrar
+                mixBlendMode: "normal", // Garante que o canal alfa (transparência) renderize corretamente
+                // ===============================================
+
+                transform: `rotate(${body.angle}deg)`,
+                transition: 'transform 0.1s'
+            }}
+        />
+    );
+};
+
+
 // --- 2. SISTEMAS DA GAME ENGINE ---
 
 const LookAtMouseSystem = (entities, { input }) => {
@@ -144,7 +202,7 @@ const BulletSystem = (entities) => {
 
                     if (distance <= bulletRadius + enemy.h / 2) {
                         delete entities[key]
-                        entities.pointsText.value += enemy.speed;
+                        entities.pointsText.value++;
                         delete entities[ekey]
                         return
                     }
@@ -196,7 +254,11 @@ const SpawnEnemies = (entities) => {
         entities.global.Timer = Timer[Math.floor(Math.random() * Timer.length)]
 
         const enemyId = "enemy_" + Date.now() + "_" + Math.random();
-        const Colors = [{ color: '#bebebe', speed: 0.3 }, { color: '#07fd82', speed: 0.5 }]
+        const Colors = [
+            { color: '#bebebe', speed: 0.3 },
+            { color: '#07fd82', speed: 0.5 },
+        ]
+
         const index = Colors[Math.floor(Math.random() * Colors.length)]
 
         var posx = Math.random() * 110 + 70
@@ -236,6 +298,41 @@ const EnemySystem = (entities) => {
 
 
             enemy.angle = Angular * (180 / Math.PI);
+
+            Object.keys(entities).forEach(ekey => {
+
+                let enemy = entities[ekey]
+
+                const disX = player.x - enemy.x;
+                const disY = player.y - enemy.y;
+
+                const distance = Math.sqrt((disX * disX) + (disY * disY))
+
+                if (distance <= 20 + enemy.h / 2) {
+                    delete entities[key]
+                    entities.healthText.value--
+                    for (let i = 0; i < 40; i++) {
+                        particleId++;
+                        const pKey = `particle_${particleId}`;
+
+                        // Sorteia direções espalhadas (para cima, baixo, esquerda, direita)
+                        let velX = (Math.random() - 0.5) * 6;
+                        let velY = (Math.random() - 0.5) * 6;
+
+                        let color = "#ff0c0c"
+
+                        entities[pKey] = {
+                            body: [eX, eY, velX, velY], // X, Y, VelocidadeX, VelocidadeY
+                            size: [2, 2],              // Partícula bem pequenininha
+                            backgroundColor: color,
+                            life: (0.4 + Math.random()) * 20,                  // Vai durar 20 frames na tela
+                            renderer: <Box />
+                        };
+                    }
+                    return
+                }
+
+            })
         }
     })
 
@@ -249,7 +346,8 @@ export default function TankLight() {
     const entitiesRef = useRef({
         player: { x: 400, y: 200, angle: 0, renderer: PlayerRenderer, },
         global: { mouseX: 400, mouseY: 200, engineRect: null, scaleX: 1, scaleY: 1, cooldown: 0, Timer: 240, tiroCooldown: 0 },
-        pointsText: { value: 0, color: 'white', x: 30, y: 20, size: 30, renderer: TextRenderer }
+        pointsText: { value: 0, color: 'white', x: 70, y: 70, size: 20, renderer: TextRenderer },
+        healthText: { value: 3, color: '#ff0000ff', x: 30, y: 30, renderer: LifeRenderer }
     });
 
     const updateEngineRect = () => {
