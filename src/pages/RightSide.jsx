@@ -551,17 +551,7 @@ export default function RightSide() {
   };
   // Usamos o useEffect para escutar o teclado na janela inteira do navegador
   useEffect(() => {
-    const handleKeyDown = (e) => {
-
-      if (e.key === "ArrowRight") {
-        entities.box.body[0] += 15;
-      } else if (e.key === "ArrowLeft") {
-        entities.box.body[0] -= 15;
-      } else if (e.key === "ArrowDown") {
-        entities.box.body[1] += 15;
-      } else if (e.key === "ArrowUp") {
-        entities.box.body[1] -= 15;
-      }
+    const handleKeyDown = () => {
     };
 
     window.addEventListener("keydown", handleKeyDown);
