@@ -117,7 +117,6 @@ const MoveBox = (entities, { input }) => {
       entities.global.updateScoreBoard([...entities.global.pointsValues]);
     }
 
-    console.log(entities.global.pointsValues)
     entities.Points.value = 0;
   }
 
@@ -206,6 +205,41 @@ const MoveBullet = (entities) => {
   return entities;
 };
 
+ const getParticleColor = (hexStr) => {
+  if (!hexStr) return "#ffffff"; // Fallback caso não venha cor
+
+  const cleanHex = hexStr.replace('#', '');
+  const r = parseInt(cleanHex.substring(0, 2), 16) / 255;
+  const g = parseInt(cleanHex.substring(2, 4), 16) / 255;
+  const b = parseInt(cleanHex.substring(4, 6), 16) / 255;
+
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const delta = max - min;
+  
+  let h = 0;
+
+  if (delta !== 0) {
+    if (max === r) {
+      h = ((g - b) / delta) % 6;
+    } else if (max === g) {
+      h = (b - r) / delta + 2;
+    } else {
+      h = (r - g) / delta + 4;
+    }
+    h = Math.round(h * 60);
+    if (h < 0) h += 360;
+  }
+
+  // Adiciona pequenas variações para as partículas não ficarem idênticas
+  const hueVariation = h + Math.floor((Math.random() - 0.5) * 20); // Varia o Hue em +-10 graus
+  const saturation = 85 + Math.floor(Math.random() * 15);         // Saturação entre 85% e 100%
+  const lightness = 45 + Math.floor(Math.random() * 15);          // Luminosidade entre 45% e 60%
+
+  // Retorna uma string que o CSS e o React conseguem renderizar perfeitamente
+  return `hsl(${hueVariation}, ${saturation}%, ${lightness}%)`;
+};
+
 const CheckCollisions = (entities) => {
   Object.keys(entities).forEach((bulletKey) => {
     if (bulletKey.startsWith("bullet_")) {
@@ -253,7 +287,7 @@ const CheckCollisions = (entities) => {
             if (entities[bulletKey].body[2] === "d") { color = "#0c10ff" }
             if (entities[bulletKey].body[2] === "l") { color = "#a0fc0d" }
             if (entities[bulletKey].body[2] === "r") { color = "#ff0ceb" }
-
+            color = getParticleColor(enemy.backgroundColor)
             entities[pKey] = {
               body: [eX, eY, velX, velY], // X, Y, VelocidadeX, VelocidadeY
               size: [2, 2],              // Partícula bem pequenininha

@@ -182,6 +182,39 @@ const LookAtMouseSystem = (entities, { input }) => {
     return entities;
 };
 
+const getParticleColor = (hexStr) => {
+    if (!hexStr) return "#ffffff"; // Fallback caso não venha cor
+
+    const cleanHex = hexStr.replace('#', '');
+    const r = parseInt(cleanHex.substring(0, 2), 16) / 255;
+    const g = parseInt(cleanHex.substring(2, 4), 16) / 255;
+    const b = parseInt(cleanHex.substring(4, 6), 16) / 255;
+
+    const max = Math.max(r, g, b);
+    const min = Math.min(r, g, b);
+    const delta = max - min;
+
+    let h = 0;
+
+    if (delta !== 0) {
+        if (max === r) {
+            h = ((g - b) / delta) % 6;
+        } else if (max === g) {
+            h = (b - r) / delta + 2;
+        } else {
+            h = (r - g) / delta + 4;
+        }
+        h = Math.round(h * 60);
+        if (h < 0) h += 360;
+    }
+
+    const hueVariation = h + Math.floor((Math.random() - 0.5) * 20); // Varia o Hue em +-10 graus
+    const saturation = 85 + Math.floor(Math.random() * 15);         // Saturação entre 85% e 100%
+    const lightness = 45 + Math.floor(Math.random() * 15);          // Luminosidade entre 45% e 60%
+
+    return `hsl(${hueVariation}, ${saturation}%, ${lightness}%)`;
+};
+
 const BulletSystem = (entities) => {
     const mapWidth = 800;
     const mapHeight = 400;
@@ -204,6 +237,23 @@ const BulletSystem = (entities) => {
                         delete entities[key]
                         entities.pointsText.value++;
                         delete entities[ekey]
+                        for (let i = 0; i < 40; i++) {
+                            particleId++;
+                            const pKey = `particle_${particleId}`;
+
+                            // Sorteia direções espalhadas (para cima, baixo, esquerda, direita)
+                            let velX = (Math.random() - 0.5) * 6;
+                            let velY = (Math.random() - 0.5) * 6;
+
+                            let color = enemy.color
+                            entities[pKey] = {
+                                body: [bullet.x, bullet.y, velX, velY], // X, Y, VelocidadeX, VelocidadeY
+                                size: [2, 2],              // Partícula bem pequenininha
+                                backgroundColor: color,
+                                life: (0.4 + Math.random()) * 20,                  // Vai durar 20 frames na tela
+                                renderer: <Box />
+                            };
+                        }
                         return
                     }
                 }
@@ -255,9 +305,31 @@ const SpawnEnemies = (entities) => {
 
         const enemyId = "enemy_" + Date.now() + "_" + Math.random();
         const Colors = [
+            // Tons Originais
             { color: '#bebebe', speed: 0.3 },
             { color: '#07fd82', speed: 0.5 },
-        ]
+
+            // Tons Vibrantes e Neon
+            { color: '#ff0055', speed: 1.2 }, // Rosa Choque (Rápido)
+            { color: '#00e5ff', speed: 0.8 }, // Ocean Neon (Moderado)
+            { color: '#ffea00', speed: 1.5 }, // Amarelo Elétrico (Rápido)
+            { color: '#a020f0', speed: 0.4 }, // Roxo Neon (Lento)
+            { color: '#ff6c00', speed: 1.1 }, // Laranja Vivo (Rápido)
+
+            // Tons Pastéis e Suaves
+            { color: '#ffb3ba', speed: 0.2 }, // Rosa Pastel (Muito Lento)
+            { color: '#baffc9', speed: 0.3 }, // Verde Menta (Lento)
+            { color: '#bae1ff', speed: 0.5 }, // Azul Bebê (Moderado)
+            { color: '#e8c4ff', speed: 0.4 }, // Lavanda (Lento)
+            { color: '#ffdfba', speed: 0.6 }, // Pêssego (Moderado)
+
+            // Tons Profundos e Sóbrios
+            { color: '#3c3c68ff', speed: 0.1 }, // Azul Noturno (Quase Estático)
+            { color: '#0c4c99ff', speed: 0.7 }, // Azul Profundo (Moderado)
+            { color: '#e94560', speed: 1.4 }, // Carmim (Rápido)
+            { color: '#314888ff', speed: 0.25 } // Escuro Sóbrio (Lento)
+        ];
+
 
         const index = Colors[Math.floor(Math.random() * Colors.length)]
 
@@ -267,11 +339,12 @@ const SpawnEnemies = (entities) => {
         if (Math.random() >= 0.5) {
             posx = Math.random() * 170 + 600
         }
+        var Size = 10 + Math.random() * 30
         entities[enemyId] = {
             x: posx,
             y: posy,
-            h: 40,
-            w: 40,
+            h: Size,
+            w: Size,
             renderer: EnemyRenderer,
             color: index.color,
             speed: index.speed
@@ -300,44 +373,65 @@ const EnemySystem = (entities) => {
             enemy.angle = Angular * (180 / Math.PI);
 
             Object.keys(entities).forEach(ekey => {
+                if (ekey.startsWith("enemy_")) {
+                    let enemy = entities[ekey]
+                    const enemyColor = enemy.color;
 
-                let enemy = entities[ekey]
+                    const disX = player.x - enemy.x;
+                    const disY = player.y - enemy.y;
 
-                const disX = player.x - enemy.x;
-                const disY = player.y - enemy.y;
+                    const distance = Math.sqrt((disX * disX) + (disY * disY))
 
-                const distance = Math.sqrt((disX * disX) + (disY * disY))
+                    if (distance <= 20 + enemy.h / 2) {
+                        delete entities[key]
+                        entities.healthText.value--
+                        for (let i = 0; i < 40; i++) {
+                            particleId++;
+                            const pKey = `particle_${particleId}`;
 
-                if (distance <= 20 + enemy.h / 2) {
-                    delete entities[key]
-                    entities.healthText.value--
-                    for (let i = 0; i < 40; i++) {
-                        particleId++;
-                        const pKey = `particle_${particleId}`;
+                            // Sorteia direções espalhadas (para cima, baixo, esquerda, direita)
+                            let velX = (Math.random() - 0.5) * 6;
+                            let velY = (Math.random() - 0.5) * 6;
 
-                        // Sorteia direções espalhadas (para cima, baixo, esquerda, direita)
-                        let velX = (Math.random() - 0.5) * 6;
-                        let velY = (Math.random() - 0.5) * 6;
-
-                        let color = "#ff0c0c"
-
-                        entities[pKey] = {
-                            body: [eX, eY, velX, velY], // X, Y, VelocidadeX, VelocidadeY
-                            size: [2, 2],              // Partícula bem pequenininha
-                            backgroundColor: color,
-                            life: (0.4 + Math.random()) * 20,                  // Vai durar 20 frames na tela
-                            renderer: <Box />
-                        };
+                            let color = enemyColor
+                            entities[pKey] = {
+                                body: [eX, eY, velX, velY], // X, Y, VelocidadeX, VelocidadeY
+                                size: [2, 2],              // Partícula bem pequenininha
+                                backgroundColor: color,
+                                life: (0.4 + Math.random()) * 20,                  // Vai durar 20 frames na tela
+                                renderer: <Box />
+                            };
+                        }
+                        return
                     }
-                    return
-                }
 
-            })
+                }
+            }
+            )
         }
     })
 
     return entities;
 }
+
+
+const UpdateParticles = (entities) => {
+    Object.keys(entities).forEach((key) => {
+        if (key.startsWith("particle_")) {
+            let p = entities[key];
+            console.log(p)
+            p.body[0] += p.body[2]; // soma velX
+            p.body[1] += p.body[3]; // soma velY
+
+            p.life--;
+
+            if (p.life <= 0) {
+                delete entities[key];
+            }
+        }
+    });
+    return entities;
+};
 
 // --- 3. COMPONENTE PRINCIPAL ---
 export default function TankLight() {
@@ -422,7 +516,7 @@ export default function TankLight() {
                         position: "relative",
                         overflow: "hidden",
                     }}
-                    systems={[LookAtMouseSystem, BulletSystem, SpawnEnemies, EnemySystem]}
+                    systems={[LookAtMouseSystem, BulletSystem, SpawnEnemies, EnemySystem, UpdateParticles]}
                     entities={entitiesRef.current}
                 />
             </div>
