@@ -49,7 +49,11 @@ const GameText = (props) => {
       <img
         src={HeartIcon}
         alt="Coração"
-        style={{ width: "40px", height: "40px", imageRendering: "pixelated" }}
+        style={{ width: "40px", height: "40px", imageRendering: "pixelated" ,
+          userSelect: "none",
+          WebkitUserSelect: "none", // Safari
+          msUserSelect: "none",     // IE/Edge antigo
+          }}
       />
       <span style={{
         color: color || "white",
@@ -59,7 +63,10 @@ const GameText = (props) => {
         fontFamily: '"Press Start 2P", system-ui',
         imageRendering: "pixelated",
         fontSmooth: "never",
-        WebkitFontSmoothing: "none"
+        WebkitFontSmoothing: "none",
+          userSelect: "none",
+          WebkitUserSelect: "none", // Safari
+          msUserSelect: "none",     // IE/Edge antigo
       }}>
         {value}
       </span>
@@ -80,7 +87,10 @@ const PointsText = (props) => {
         fontFamily: '"Press Start 2P", system-ui',
         imageRendering: "pixelated",
         fontSmooth: "never",
-        WebkitFontSmoothing: "none"
+        WebkitFontSmoothing: "none",
+          userSelect: "none",
+          WebkitUserSelect: "none", // Safari
+          msUserSelect: "none",     // IE/Edge antigo
       }}>
         {value}
       </span>
@@ -465,7 +475,6 @@ const UpdateParticles = (entities) => {
       p.body[1] += p.body[3]; // soma velY
 
       p.life--;
-      console.log(p)
       let pcent = (p.life / p.maxLife) + (Math.random() / 3)
       let newSize = p.size[0] * pcent
       p.size = [newSize, newSize]

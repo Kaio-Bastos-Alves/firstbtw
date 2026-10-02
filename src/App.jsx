@@ -7,7 +7,7 @@ import Template from "./pages/Template";
 import React, { useEffect, useState } from "react";
 
 export default function App() {
-  const [pager,SetPager] = useState('tank')
+  const [pager,SetPager] = useState('Fast Dash')
   const Pages = [
     {name: "Right Side",page: <RightSide/>},
     {name: "Tank Light v.2",page: <TankLight/>},
