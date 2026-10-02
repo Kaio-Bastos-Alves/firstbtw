@@ -1,9 +1,10 @@
 import "regenerator-runtime/runtime";
-import React, { useRef } from "react";
 import { GameEngine } from "react-game-engine";
 import HeartIcon from '../assets/heart.png'
+import React, { useRef, useState } from "react";
 
 let particleId = 0;
+let strike = 1;
 
 // --- 1. COMPONENTE VISUAL DO PLAYER ---
 const PlayerRenderer = (props) => {
@@ -85,47 +86,36 @@ const EnemyRenderer = (props) => {
         />
     );
 }
-import React, { useMemo } from 'react';
 
-// Função utilitária para clarear/escurecer uma cor Hex simples
-// Se você já passar a cor em formato HSL ou RGB, avise que adaptamos!
-const gerarVariacaoHex = (hex, percentual) => {
-    // Remove o # se existir
-    let limpo = hex.replace('#', '');
-    if (limpo.length === 3) {
-        limpo = limpo.split('').map(c => c + c).join('');
-    }
-    
-    let num = parseInt(limpo, 16);
-    let r = (num >> 16) + percentual;
-    let g = ((num >> 8) & 0x00FF) + percentual;
-    let b = (num & 0x0000FF) + percentual;
+const formatBigNumber = (num) => {
+    if (num < 1e3) return num.toFixed(0); // Menor que 1.000
 
-    // Garante que os valores fiquem entre 0 e 255
-    r = Math.min(255, Math.max(0, r));
-    g = Math.min(255, Math.max(0, g));
-    b = Math.min(255, Math.max(0, b));
+    const suffixes = [
+        { value: 1e3, symbol: "K" },
+        { value: 1e6, symbol: "M" },
+        { value: 1e9, symbol: "B" },
+        { value: 1e12, symbol: "T" },
+        { value: 1e15, symbol: "Qa" }, // Quadrilhão
+        { value: 1e18, symbol: "Qi" }, // Quintilhão
+    ];
 
-    return `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`;
+    // Encontra o sufixo correto varrendo do maior para o menor
+    const rx = /\.0+$|(\.[0-9]*[1-9])0+$/;
+    const item = suffixes.slice().reverse().find((item) => num >= item.value);
+
+    return item
+        ? (num / item.value).toFixed(2).replace(rx, "$1") + item.symbol
+        : num.toExponential(2);
 };
+
 
 const TextRenderer = (props) => {
     const { value, color, x, y, size } = props;
 
-    // O useMemo garante que a variação de cor seja gerada APENAS quando 
-    // o componente for montado ou quando a cor base mudar, evitando que o texto 
-    // fique piscando em loops de renderização do React.
-    const corVariada = useMemo(() => {
-        const corBase = color || "#ffffff";
-        
-        // Retorna a cor padrão caso não seja Hex (ex: "white", "red")
-        return corBase;
-    }, [color]);
-
     return (
         <div style={{ position: "absolute", left: x, top: y, display: "flex", alignItems: "center", gap: "1px" }}>
             <span style={{
-                color: corVariada,
+                color: color,
                 fontSize: size ? size : "20px",
                 fontWeight: "bold",
                 fontFamily: '"Press Start 2P", system-ui',
@@ -133,7 +123,7 @@ const TextRenderer = (props) => {
                 fontSmooth: "never",
                 WebkitFontSmoothing: "none"
             }}>
-                {Math.floor(value)}
+                {formatBigNumber(value)}
             </span>
         </div>
     );
@@ -169,15 +159,15 @@ const LifeRenderer = (props) => {
 const PointsText = (props) => {
     const { value, color, x, y, size } = props;
     return (
-        <div style={{ 
-            position: "absolute", 
-            left: x, 
-            top: y, 
+        <div style={{
+            position: "absolute",
+            left: x,
+            top: y,
             transform: "translateX(-50%)", // Move o elemento 50% da própria largura para a esquerda
-            display: "flex", 
-            alignItems: "center", 
+            display: "flex",
+            alignItems: "center",
             justifyContent: "center",     // Garante centralização interna do conteúdo
-            gap: "1px" 
+            gap: "1px"
         }}>
             <span style={{
                 color: color || "white",
@@ -197,7 +187,7 @@ const PointsText = (props) => {
 
 
 const Box = (props) => {
-    const { size, body, backgroundColor, backgroundImage } = props;
+    const { size, body, backgroundColor, backgroundImage, round } = props;
     return (
         <div
             style={{
@@ -216,9 +206,9 @@ const Box = (props) => {
                 imageRendering: "pixelated", // CORREÇÃO PARA PIXEL ART: Mantém as bordas nítidas sem borrar
                 mixBlendMode: "normal", // Garante que o canal alfa (transparência) renderize corretamente
                 // ===============================================
-                
+
                 boxShadow: `0 0 6px ${backgroundColor}`,
-                borderRadius: "50%",
+                borderRadius: round ? "50%" : '0%',
                 transform: `rotate(${body.angle}deg)`,
                 transition: 'transform 0.1s'
             }}
@@ -279,25 +269,10 @@ const BulletSystem = (entities) => {
 
                     if (distance <= bulletRadius + enemy.h / 2) {
                         delete entities[key]
-                        entities.pointsText.value += enemy.speed * (45 - enemy.h);
+                        entities.pointsText.value += (enemy.speed * (45 - enemy.h)) * strike;
+                        strike += 0.05;
+                        GenerateParticles([enemy.x, enemy.y], enemy.color, 2, 40,entities)
                         delete entities[ekey]
-                        for (let i = 0; i < 40; i++) {
-                            particleId++;
-                            const pKey = `particle_${particleId}`;
-
-                            // Sorteia direções espalhadas (para cima, baixo, esquerda, direita)
-                            let velX = (Math.random() - 0.5) * 6;
-                            let velY = (Math.random() - 0.5) * 6;
-
-                            let color = enemy.color
-                            entities[pKey] = {
-                                body: [bullet.x, bullet.y, velX, velY], // X, Y, VelocidadeX, VelocidadeY
-                                size: [2, 2],              // Partícula bem pequenininha
-                                backgroundColor: color,
-                                life: (0.4 + Math.random()) * 20,                  // Vai durar 20 frames na tela
-                                renderer: <Box />
-                            };
-                        }
                         return
                     }
                 }
@@ -433,28 +408,17 @@ const EnemySystem = (entities) => {
                     const distance = Math.sqrt((disX * disX) + (disY * disY))
 
                     if (distance <= 20 + enemy.h / 2) {
-                        delete entities[key]
-                        entities.healthText.value--
+                        delete entities[key];
+                        entities.healthText.value--;
+                        strike = 1;
+
                         if (entities.healthText.value <= 0) {
                             entities.global.died = true
+                            return
                         }
-                        for (let i = 0; i < 40; i++) {
-                            particleId++;
-                            const pKey = `particle_${particleId}`;
-
-                            // Sorteia direções espalhadas (para cima, baixo, esquerda, direita)
-                            let velX = (Math.random() - 0.5) * 6;
-                            let velY = (Math.random() - 0.5) * 6;
-
-                            let color = enemyColor
-                            entities[pKey] = {
-                                body: [enemy.x, enemy.y, velX, velY], // X, Y, VelocidadeX, VelocidadeY
-                                size: [2, 2],              // Partícula bem pequenininha
-                                backgroundColor: color,
-                                life: (0.4 + Math.random()) * 20,                  // Vai durar 20 frames na tela
-                                renderer: <Box />
-                            };
-                        }
+                        GenerateParticles([50, 45], 'red', 2, 40,entities)
+                        entities.global.triggerShake();
+                        GenerateParticles([enemy.x, enemy.y], enemyColor, 2, 40,entities)
                         return
                     }
 
@@ -467,6 +431,29 @@ const EnemySystem = (entities) => {
     return entities;
 }
 
+const GenerateParticles = (body, color, size, hmtimes, entities) => {
+    for (let i = 0; i < hmtimes; i++) {
+        particleId++;
+        const pKey = `particle_${particleId}`;
+        let velX = (Math.random() - 0.5) * 6;
+        let velY = (Math.random() - 0.5) * 6;
+        // Sorteia direções espalhadas (para cima, baixo, esquerda, direita)
+        let life = (0.4 + Math.random()) * 40
+
+        entities[pKey] = {
+            body: [body[0],body[1],velX,velY], // X, Y, VelocidadeX, VelocidadeY
+            size: [size, size],              // Partícula bem pequenininha
+            backgroundColor: color,
+            life: life,
+            renderer: <Box />,
+            maxLife: life,
+            round: true,
+        };
+    }
+    return
+}
+
+
 const UpdateParticles = (entities) => {
     Object.keys(entities).forEach((key) => {
         if (key.startsWith("particle_")) {
@@ -477,7 +464,10 @@ const UpdateParticles = (entities) => {
             p.body[1] += p.body[3]; // soma velY
 
             p.life--;
-
+            console.log(p)
+            let pcent = (p.life / p.maxLife) + 0.2
+            let newSize = p.size[0] * pcent
+            p.size = [newSize, newSize]
             if (p.life <= 0) {
                 delete entities[key];
             }
@@ -498,7 +488,7 @@ const Paused = (entities) => {
     else if (entities.global.paused) {
         entities.boxShadow.backgroundColor = "rgba(14, 13, 13, 0.5)"
         entities.PausedText.color = "#ffffff"
-        entities.PausedText.x = 90
+        entities.PausedText.x = 200
         entities.PausedText.value = "PAUSED"
         entities.deadText.color = "rgba(0,0,0,0)"
         return entities
@@ -517,11 +507,15 @@ const Paused = (entities) => {
 // --- 3. COMPONENTE PRINCIPAL ---
 export default function TankLight() {
     const engineRef = useRef(null);
+    const [isShaking, setIsShaking] = useState(false);
 
     const entitiesRef = useRef({
         player: { x: 400, y: 200, angle: 0, renderer: PlayerRenderer, },
-        global: { mouseX: 400, mouseY: 200, engineRect: null, scaleX: 1, scaleY: 1, cooldown: 0, Timer: 240, tiroCooldown: 0, died: false, paused: false },
-        pointsText: { value: 0, color: 'white', x: 70, y: 70, size: 20, renderer: TextRenderer },
+        global: {
+            mouseX: 400, mouseY: 200, engineRect: null, scaleX: 1, scaleY: 1, cooldown: 0, Timer: 240, tiroCooldown: 0, died: false, paused: false,
+            triggerShake: () => { setIsShaking(true); setTimeout(() => setIsShaking(false), 300); },
+        },
+        pointsText: { value: 0, color: 'white', x: 50, y: 70, size: 20, renderer: TextRenderer },
         healthText: { value: 3, color: '#ff0000ff', x: 30, y: 30, renderer: LifeRenderer },
         boxShadow: { body: [0, 0], size: [800, 400], backgroundColor: "transparent", renderer: <Box /> },
         PausedText: { value: "PAUSED", color: "#ffffff00", x: 130, y: 170, size: 40, renderer: <PointsText /> },
@@ -550,7 +544,8 @@ export default function TankLight() {
     }, []);
 
     const handleMouseDown = () => {
-        if (entitiesRef.current.global.tiroCooldown > 30) {
+        if (entitiesRef.current.global.tiroCooldown > 15) {
+            if (entitiesRef.current.global.paused) { entitiesRef.current.global.paused = false; return }
             if (entitiesRef.current.global.died || entitiesRef.current.global.paused) { return }
 
             entitiesRef.current.global.tiroCooldown = 0
@@ -591,6 +586,7 @@ export default function TankLight() {
             }}
         >
             <div
+                className={isShaking ? "screen-shake" : ""}
                 ref={engineRef}
                 onMouseEnter={updateEngineRect}
                 onMouseDown={handleMouseDown}

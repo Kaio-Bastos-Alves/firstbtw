@@ -11,7 +11,7 @@ let particleId = 0;
 
 // 1. Componente visual da caixinha
 const Box = (props) => {
-  const { size, body, backgroundColor, backgroundImage } = props;
+  const { size, body, backgroundColor, backgroundImage,round } = props;
   return (
     <div
       style={{
@@ -26,6 +26,8 @@ const Box = (props) => {
         backgroundSize: "contain",
         backgroundRepeat: "no-repeat",
         backgroundPosition: "center",
+        borderRadius: round ? "50%" : '0%',
+        boxShadow: `0 0 6px ${backgroundColor}`,
         // ====== 3 PROPRIEDADES QUE CORRIGEM O PNG =======
         imageRendering: "pixelated", // CORREÇÃO PARA PIXEL ART: Mantém as bordas nítidas sem borrar
         mixBlendMode: "normal", // Garante que o canal alfa (transparência) renderize corretamente
@@ -205,41 +207,6 @@ const MoveBullet = (entities) => {
   return entities;
 };
 
- const getParticleColor = (hexStr) => {
-  if (!hexStr) return "#ffffff"; // Fallback caso não venha cor
-
-  const cleanHex = hexStr.replace('#', '');
-  const r = parseInt(cleanHex.substring(0, 2), 16) / 255;
-  const g = parseInt(cleanHex.substring(2, 4), 16) / 255;
-  const b = parseInt(cleanHex.substring(4, 6), 16) / 255;
-
-  const max = Math.max(r, g, b);
-  const min = Math.min(r, g, b);
-  const delta = max - min;
-  
-  let h = 0;
-
-  if (delta !== 0) {
-    if (max === r) {
-      h = ((g - b) / delta) % 6;
-    } else if (max === g) {
-      h = (b - r) / delta + 2;
-    } else {
-      h = (r - g) / delta + 4;
-    }
-    h = Math.round(h * 60);
-    if (h < 0) h += 360;
-  }
-
-  // Adiciona pequenas variações para as partículas não ficarem idênticas
-  const hueVariation = h + Math.floor((Math.random() - 0.5) * 20); // Varia o Hue em +-10 graus
-  const saturation = 85 + Math.floor(Math.random() * 15);         // Saturação entre 85% e 100%
-  const lightness = 45 + Math.floor(Math.random() * 15);          // Luminosidade entre 45% e 60%
-
-  // Retorna uma string que o CSS e o React conseguem renderizar perfeitamente
-  return `hsl(${hueVariation}, ${saturation}%, ${lightness}%)`;
-};
-
 const CheckCollisions = (entities) => {
   Object.keys(entities).forEach((bulletKey) => {
     if (bulletKey.startsWith("bullet_")) {
@@ -274,28 +241,13 @@ const CheckCollisions = (entities) => {
           bY < eY + eH &&
           bY + bH > eY
         ) {
-          for (let i = 0; i < 40; i++) {
-            particleId++;
-            const pKey = `particle_${particleId}`;
-
-            // Sorteia direções espalhadas (para cima, baixo, esquerda, direita)
-            let velX = (Math.random() - 0.5) * 6;
-            let velY = (Math.random() - 0.5) * 6;
-
-            let color = ""
-            if (entities[bulletKey].body[2] === "u") { color = "#ff0c0c" }
-            if (entities[bulletKey].body[2] === "d") { color = "#0c10ff" }
-            if (entities[bulletKey].body[2] === "l") { color = "#a0fc0d" }
-            if (entities[bulletKey].body[2] === "r") { color = "#ff0ceb" }
-            color = getParticleColor(enemy.backgroundColor)
-            entities[pKey] = {
-              body: [eX, eY, velX, velY], // X, Y, VelocidadeX, VelocidadeY
-              size: [2, 2],              // Partícula bem pequenininha
-              backgroundColor: color,
-              life: (0.4 + Math.random()) * 20,                  // Vai durar 20 frames na tela
-              renderer: <Box />
-            };
-          }
+          GenerateParticles([eX, eY],
+            entities[bulletKey].body[2] === "u" ? "#ff0c0c" :
+              entities[bulletKey].body[2] === "d" ? "#0c10ff" :
+                entities[bulletKey].body[2] === "l" ? "#a0fc0d" :
+                  entities[bulletKey].body[2] === "r" ? "#ff0ceb" : '',
+            2, 40, entities
+          )
 
           delete entities[bulletKey]; // Destrói a entidade da bala
           enemy.launch = false;       // Torna falso o launch do mob afetado
@@ -316,7 +268,7 @@ const LaunchEnemy = (entities) => {
 
   // 1. Criamos dinamicamente o tempo alvo usando a dificuldade
   // Quanto maior o difficult (ex: 3), menor é o tempo base, acelerando o jogo
-  const baseTime = 200 + Math.random() * 300; 
+  const baseTime = 200 + Math.random() * 300;
   const tempoAlvo = baseTime - (entities.global.difficult * 50);
 
   if (entities.global.time > Math.max(50, tempoAlvo)) {
@@ -324,13 +276,13 @@ const LaunchEnemy = (entities) => {
 
     const Pos = [entities.mob, entities.mob2, entities.mob3, entities.mob4];
     const choosenOne = Pos[Math.floor(Math.random() * Pos.length)];
-    
+
     // Opcional: só lança se o mob já não estiver ativo (evita sobrescrever um mob que já está a andar)
     if (!choosenOne.launch) {
       choosenOne.launch = true;
     }
   }
-  
+
   return entities;
 };
 
@@ -386,24 +338,7 @@ const SpawnMobs = (entities) => {
   const LoseLife = () => {
     entities.healthText.value--;
     entities.global.triggerShake()
-    for (let i = 0; i < 20; i++) {
-      particleId++;
-      const pKey = `particle_${particleId}`;
-
-      // Sorteia direções espalhadas (para cima, baixo, esquerda, direita)
-      let velX = (Math.random() - 0.5) * 6;
-      let velY = (Math.random() - 0.5) * 6;
-
-      let color = "red"
-
-      entities[pKey] = {
-        body: [40, 40, velX, velY], // X, Y, VelocidadeX, VelocidadeY
-        size: [4, 4],              // Partícula bem pequenininha
-        backgroundColor: color,
-        life: (0.4 + Math.random()) * 20,                  // Vai durar 20 frames na tela
-        renderer: <Box />
-      };
-    }
+    GenerateParticles([40, 40], 'red', 2, 20, entities)
 
   }
 
@@ -497,19 +432,43 @@ const Paused = (entities) => {
   }
 }
 
+const GenerateParticles = (body, color, size, hmtimes, entities) => {
+  for (let i = 0; i < hmtimes; i++) {
+    particleId++;
+    const pKey = `particle_${particleId}`;
+    let velX = (Math.random() - 0.5) * 6;
+    let velY = (Math.random() - 0.5) * 6;
+    // Sorteia direções espalhadas (para cima, baixo, esquerda, direita)
+    let life = (0.4 + Math.random()) * 40
+
+    entities[pKey] = {
+      body: [body[0], body[1], velX, velY], // X, Y, VelocidadeX, VelocidadeY
+      size: [size, size],              // Partícula bem pequenininha
+      backgroundColor: color,
+      life: life,
+      renderer: <Box />,
+      maxLife: life,
+      round: true,
+    };
+  }
+  return
+}
+
+
 const UpdateParticles = (entities) => {
   Object.keys(entities).forEach((key) => {
     if (key.startsWith("particle_")) {
-      let p = entities[key];
 
-      // Move a partícula baseada na velocidade sorteada
+      if (entities.global.died || entities.global.paused) { delete entities[key]; return entities }
+      let p = entities[key];
       p.body[0] += p.body[2]; // soma velX
       p.body[1] += p.body[3]; // soma velY
 
-      // Diminui o tempo de vida dela a cada frame
       p.life--;
-
-      // Se o tempo acabou, remove do jogo
+      console.log(p)
+      let pcent = (p.life / p.maxLife) + (Math.random() / 3)
+      let newSize = p.size[0] * pcent
+      p.size = [newSize, newSize]
       if (p.life <= 0) {
         delete entities[key];
       }
@@ -521,7 +480,7 @@ const UpdateParticles = (entities) => {
 export default function RightSide() {
   const [isShaking, setIsShaking] = useState(false);
   const [difficult, setDifficult] = useState(3);
-  const [record, setRecord] = useState([0,0,0])
+  const [record, setRecord] = useState([0, 0, 0])
   const entities = {
     box: { body: [200, 200], size: [40, 40], renderer: <Box /> },
     bullet: { body: [20, 20], size: [10, 10], renderer: <Box /> },
@@ -539,10 +498,10 @@ export default function RightSide() {
     global: {
       time: 0, cooldown: 0, index: 1, difficult: difficult, died: false, paused: true,
       triggerShake: () => { setIsShaking(true); setTimeout(() => setIsShaking(false), 300); },
-      updateScoreBoard: (props) => {setRecord(props)},
+      updateScoreBoard: (props) => { setRecord(props) },
       pointsValues: [],
     },
-    healthText: { value: 3, color: "#cc2e2e", x: 20, y: 20, renderer: <GameText /> },
+    healthText: { value: 3, color: "#ff0000", x: 20, y: 20, renderer: <GameText /> },
     Points: { value: 0, color: "#ffffff", x: 320, y: 20, renderer: <PointsText /> },
     boxShadow: { body: [0, 0], size: [400, 400], backgroundColor: "transparent", renderer: <Box /> },
     PausedText: { value: "PAUSED", color: "#ffffff00", x: 130, y: 170, size: 40, renderer: <PointsText /> },
@@ -564,10 +523,10 @@ export default function RightSide() {
 
   return (
     <div style={{ textAlign: "center", marginTop: "40px", marginBottom: "10px" }}>
-      
+
       {/* Contendedor geral para alinhar o jogo e o pódio lado a lado */}
       <div style={{ display: "flex", justifyContent: "center", alignItems: "flex-start", gap: "20px" }}>
-        
+
         {/* Jogo */}
         <div className={isShaking ? "screen-shake" : ""} style={{ display: "inline-block" }}>
           <GameEngine
@@ -585,10 +544,10 @@ export default function RightSide() {
         </div>
 
         {/* Placar Top 3 ao lado */}
-        <div style={{ 
-          backgroundColor: "#222", 
-          padding: "20px", 
-          borderRadius: "8px", 
+        <div style={{
+          backgroundColor: "#222",
+          padding: "20px",
+          borderRadius: "8px",
           color: "white",
           fontFamily: '"Press Start 2P", system-ui',
           fontSize: "14px",
