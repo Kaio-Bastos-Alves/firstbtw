@@ -3,11 +3,13 @@ import React, { useEffect, useState, useRef } from 'react';
 import { GameEngine } from 'react-game-engine';
 import HeartIcon from '../assets/heart.png'
 
-let X = 0;
-let Y = 0;
+let X = 190;
+let Y = 190;
 let particleId = 0;
 let dangerId = 0;
 let healId = 0;
+
+//RENDERERS
 
 const Box = (props) => {
   const { size, body, backgroundColor } = props;
@@ -138,6 +140,27 @@ const GreenArea = (props) => {
   );
 };
 
+const formatBigNumber = (num) => {
+    if (num < 1e3) return num.toFixed(0); // Menor que 1.000
+
+    const suffixes = [
+        { value: 1e3, symbol: "K" },
+        { value: 1e6, symbol: "M" },
+        { value: 1e9, symbol: "B" },
+        { value: 1e12, symbol: "T" },
+        { value: 1e15, symbol: "Qa" }, // Quadrilhão
+        { value: 1e18, symbol: "Qi" }, // Quintilhão
+    ];
+
+    // Encontra o sufixo correto varrendo do maior para o menor
+    const rx = /\.0+$|(\.[0-9]*[1-9])0+$/;
+    const item = suffixes.slice().reverse().find((item) => num >= item.value);
+
+    return item
+        ? (num / item.value).toFixed(2).replace(rx, "$1") + item.symbol
+        : num.toExponential(2);
+};
+
 const TextRenderer = (props) => {
   const { value, color, x, y, size } = props;
 
@@ -155,7 +178,7 @@ const TextRenderer = (props) => {
         WebkitUserSelect: "none", // Safari
         msUserSelect: "none",     // IE/Edge antigo
       }}>
-        {Math.floor(value)}
+        {formatBigNumber(value)}
       </span>
     </div>
   );
@@ -195,6 +218,31 @@ const LifeRenderer = (props) => {
   );
 };
 
+const PointsText = (props) => {
+  const { value, color, x, y, size } = props;
+  return (
+    <div style={{ position: "absolute", left: x, top: y, display: "flex", alignItems: "center", gap: "1px" }}>
+      <span style={{
+        color: color || "white",
+        fontSize: size ? size : "20px",
+        fontWeight: "bold",
+        // Modificado para garantir fallbacks retro caso o navegador demore 1ms a mais para montar
+        fontFamily: '"Press Start 2P", system-ui',
+        imageRendering: "pixelated",
+        fontSmooth: "never",
+        WebkitFontSmoothing: "none",
+          userSelect: "none",
+          WebkitUserSelect: "none", // Safari
+          msUserSelect: "none",     // IE/Edge antigo
+      }}>
+        {value}
+      </span>
+    </div>
+  );
+};
+
+//FUNÇÕES
+
 const TemplateFunction = (entities, { input }) => {
 
   const multPcent = 10;
@@ -207,8 +255,16 @@ const TemplateFunction = (entities, { input }) => {
 
   
   const { payload } = input.find(x => x.name === "onKeyDown") || { payload: {} };
+  if(payload.key === "r"){
+    entities.global.paused = true;
+    entities.pointsText.value = 0;
+    entities.healthText.value = 3;
+  }
   if (payload.key === "Escape") entities.global.paused = !entities.global.paused
   if(entities.global.paused || entities.global.died) return entities;
+
+  entities.pointsText.value += entities.healthText.value;
+
   const distY = destinoY - atualY;
   const distX = destinoX - atualX;
 
@@ -399,12 +455,14 @@ const LoseLife = (entities) => {
   const playerRadius = player.size[0] / 2;
   const velX = (Math.random() - 0.5) * 15;
   const velY = (Math.random() - 0.5) * 15;
-  if (!player.canHit) { console.log("could?"); return entities }
+  if (!player.canHit) { return entities }
 
-  console.log("wha");
   player.canHit = false;
   entities.healthText.value--;
   entities.global.triggerShake();
+  if(entities.healthText.value <= 0){
+    entities.global.died = true;
+  }
   GenerateParticles(
     [player.body[0] + playerRadius, player.body[1] + playerRadius],
     "#ffffff",
@@ -478,6 +536,31 @@ const getAlpha = (pcentLife) => {
   return Math.floor((pcentLife - 10) / 10) % 2 === 0 ? 0.15 : 0.53;
 }
 
+const Paused = (entities) => {
+  if (entities.global.died) {
+    entities.boxShadow.backgroundColor = "rgba(14, 13, 13, 0.5)"
+    entities.PausedText.color = "#ffffff"
+    entities.PausedText.value = "DIED"
+    entities.deadText.color = "#ffffff"
+    entities.PausedText.x = 130
+    return entities
+  }
+  else if (entities.global.paused) {
+    entities.boxShadow.backgroundColor = "rgba(14, 13, 13, 0.5)"
+    entities.PausedText.color = "#ffffff"
+    entities.PausedText.x = 90
+    entities.PausedText.value = "PAUSED"
+    entities.deadText.color = "rgba(0,0,0,0)"
+    return entities
+  }
+  else {
+    entities.deadText.color = "rgba(0,0,0,0)"
+    entities.boxShadow.backgroundColor = "rgba(14, 13, 13, 0.0)"
+    entities.PausedText.color = "#ffffff00"
+    return entities;
+  }
+}
+
 
 export default function FastDash() {
   // Alterado: Agora esta ref vai apontar para o elemento HTML real (div container)
@@ -494,10 +577,9 @@ export default function FastDash() {
       healcooldown:0,
       triggerShake: () => { setIsShaking(true); setTimeout(() => setIsShaking(false), 500); },
       triggerExplo: () => { setIsShaking(true); setTimeout(() => setIsShaking(false), 100); },
-
     },
     player: {
-      body: [20, 20],
+      body: [200, 200],
       size: [20, 20],
       backgroundColor: 'white',
       renderer: <Box />,
@@ -505,8 +587,11 @@ export default function FastDash() {
       cool: 0,
     },
 
-    pointsText: { value: 0, color: 'white', x: 50, y: 70, size: 20, renderer: TextRenderer },
+    pointsText: { value: 2000, color: 'white', x: 30, y: 70, size: 20, renderer: TextRenderer },
     healthText: { value: 3, color: '#ff0000ff', x: 30, y: 30, renderer: LifeRenderer },
+    boxShadow: { body: [0, 0], size: [400, 400], backgroundColor: "transparent", renderer: <Box /> },
+    PausedText: { value: "PAUSED", color: "#ffffff00", x: 130, y: 170, size: 40, renderer: <PointsText /> },
+    deadText: { value: "Press R to restart.", color: "#ffffff", x: 120, y: 220, size: 10, renderer: <PointsText /> },
   };
 
   const handleMouseDown = (e, entities) => {
@@ -545,7 +630,7 @@ export default function FastDash() {
             position: "relative",
             overflow: "hidden",
           }}
-          systems={[TemplateFunction, UpdateParticles, DangerManager,HealingManager]}
+          systems={[TemplateFunction, UpdateParticles, DangerManager,HealingManager,Paused]}
           entities={initialEntities}
         />
       </div>

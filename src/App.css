@@ -1,25 +1,5 @@
 @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
 
-.header{
-  background-color: #2b2d3b;
-  text-align: end;
-  padding-right: 10px;
-  padding-bottom: 4px;
-}
-
-.header-btn {
-  border: none !important;
-  border-radius: 45px;
-  transition: all 0.3s;
-  cursor: pointer;
-  background: rgba(165, 3, 3, 0);
-  padding: 5px;
-  font-size: 8px;
-  font-weight: 100;
-  color: #3d023a;
-  font-family: "Press Start 2P";
-}
-
 @keyframes shake {
   0% { transform: translate(0, 0); }
   20% { transform: translate(3px, -3px); }
@@ -29,9 +9,25 @@
   100% { transform: translate(0, 0); }
 }
 
-.header-btn:hover {
-  color: #d402ca;
-  transform: scale(1.1);
-  animation: shake 0.5s ease infinite; 
+@keyframes flutuate {
+  0% { transform: scale(1.0);}
+  50% { transform: scale(1.03);}
+  100% { transform: scale(1.0);}
 }
 
+.card-hover{
+  animation: flutuate 1s infinite;
+}
+
+.card-title{
+  font-size: 10px; 
+  margin-bottom: 10px; 
+  color: #ff00bf;
+  font-family: "Press Start 2P", system-ui;
+}
+
+.card-image {
+  max-width: 160px;
+  border-radius:10px;
+  padding-bottom:10px;
+}
