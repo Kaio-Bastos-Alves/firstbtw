@@ -1,20 +1,12 @@
 import "./App.css";
-import RightSide from './pages/RightSide';
-import TankLight from "./pages/TankLight";
-import FastDash from "./pages/FastDash";
 import React, { useState } from "react";
 
 import template from './assets/template.png'
-import rightSideImg from './assets/rightisde.jpg'
+
+import Pages from "./data";
 
 export default function App() {
-  const [pager, setPager] = useState('');
-
-  const Pages = [
-    { name: "Right Side", page: <RightSide />, image: rightSideImg, description: "Defenda as quatro direções de mobs implacáveis!", difficult: 3 },
-    { name: "Tank Light v.2", page: <TankLight />, image: null, description: "Controle o tanque com mira precisa do mouse e destrua os inimigos.", difficult: 3 },
-    { name: "Fast Dash", page: <FastDash />, image: null, description: "Teste suas habilidades com ganchos e muita velocidade.", difficult: 3 },
-  ];
+  const [pager, setPager] = useState('Sem Nome Ainda');
 
   // Encontra a página ativa atual
   const activePage = Pages.find((p) => p.name === pager);
@@ -44,27 +36,22 @@ export default function App() {
       )}
 
       {/* CONTEÚDO DA PÁGINA */}
-      <div style={{ textAlign: "center", padding: "0px" }}>
+      <div style={{ textAlign: "center", padding: "0px 0px 50px 0px" }}>
         {pager === '' ? (
           // TELA DE SELEÇÃO (CARDS)
           <div>
             <h1
-              style={{ fontSize: "24px", marginBottom: "30px", color: "#d402ca", fontFamily: '"Press Start 2P", system-ui' }}
-
+              style={{ fontSize: "24px", marginBottom: "30px",paddingTop: "30px", color: "#d402ca", fontFamily: '"Press Start 2P", system-ui', transition:"color 0.2s" }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.transform = "scale(1.05)";
                 e.currentTarget.style.color = "#ff00f2";
-                e.currentTarget.className = "card-hover";
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.transform = "scale(1)";
                 e.currentTarget.style.color = "#7a0074";
-                e.currentTarget.style.boxShadow = "none";
-                e.currentTarget.className = "";
               }}
             >MEUS JOGOS
             </h1>
-            <div style={{ display: "flex", justifyContent: "center", gap: "20px", flexWrap: "wrap" }}>
+
+            <div style={{ display: "flex", justifyContent: "center", gap: "20px", flexWrap: "wrap", paddingBottom: "50px"}}>
               {Pages.map((game) => (
                 <div
                   key={game.name}
