@@ -141,10 +141,10 @@ const MoveBox = (entities, { input }) => {
   if (entities.global.died || entities.global.paused) { return entities; }
 
   // Movimentação do Box
-  if (payload.key === "ArrowRight") { entities.box.body.direction = "r"; entities.box.body.angle = 0; }
-  else if (payload.key === "ArrowLeft") { entities.box.body.direction = "l"; entities.box.body.angle = 180; }
-  else if (payload.key === "ArrowDown") { entities.box.body.direction = "d"; entities.box.body.angle = 90; }
-  else if (payload.key === "ArrowUp") { entities.box.body.direction = "u"; entities.box.body.angle = -90; }
+  if (payload.key === "ArrowRight" || payload.key === "d") { entities.box.body.direction = "r"; entities.box.body.angle = 0; }
+  else if (payload.key === "ArrowLeft" || payload.key === "a") { entities.box.body.direction = "l"; entities.box.body.angle = 180; }
+  else if (payload.key === "ArrowDown" || payload.key === "s") { entities.box.body.direction = "d"; entities.box.body.angle = 90; }
+  else if (payload.key === "ArrowUp" || payload.key === "w") { entities.box.body.direction = "u"; entities.box.body.angle = -90; }
 
   // Limites da tela para o Box
   if (entities.box.body[0] >= 360) entities.box.body[0] = 360;
