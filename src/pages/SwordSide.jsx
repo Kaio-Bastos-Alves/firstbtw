@@ -1,6 +1,7 @@
 import 'regenerator-runtime/runtime';
 import React, { useEffect, useState, useRef } from 'react';
 import { GameEngine } from 'react-game-engine';
+import "./css/SwordSide.css"
 
 let EnemyID = 0;
 const Box = (props) => {
@@ -31,11 +32,23 @@ const Box = (props) => {
 // O sistema precisa retornar as entidades modificadas a cada tick
 const PlayerMovement = (entities, { input }) => {
     const { payload } = input.find(x => x.name === "onKeyDown") || { payload: {} };
+    entities.player.colodown++
+    console.log
+    if(entities.player.colodown > 20) return entities
     if (payload.key == "a" || payload.key == "ArrowLeft" || payload.key == "d" || payload.key == "ArrowRight") {
+        const existemInimigosNaTela = Object.keys(entities).some(key => key.startsWith('enemy_') && entities[key].body[0] >200 || entities[key].body[0]<200);
+        if(existemInimigosNaTela){
         entities.player.SetDirection(payload.key)
+        }
+        else{
+            entities.player.backgroundColor = '#ff000065'
+            entities.player.colodown = 0;
+            return entities
+        }
     }
     return entities;
 };
+
 const EnemyManager = (entities) => {
   const player = entities.player;
   const playerX = player.body[0];
@@ -45,21 +58,21 @@ const EnemyManager = (entities) => {
   Object.keys(entities).forEach((key) => {
     if (key.startsWith("enemy_")) {
       let enemy = entities[key];
-      
       // 1. Movimentação dos Inimigos
-      if (enemy.side == "right") {
+      if (enemy.body[1] < 205) {
+        enemy.body[1] += enemy.vel;
+      } else if (enemy.body[0] > playerX && enemy.body[1] > 203 && enemy.body[1] < 207) {
         enemy.body[0] -= enemy.vel;
-      } else if (enemy.side == "left") {
+      } else if (enemy.body[0] < playerX && enemy.body[1] > 203 && enemy.body[1] < 207) {
         enemy.body[0] += enemy.vel;
       }
 
       const distanceToPlayer = Math.abs(enemy.body[0] - playerX);
-
       // 2. COLISÃO: PLAYER -> INIMIGO (Player atacando)
       if (player.isAttacking) {
         // Verifica se o player atacou para o lado CORRETO em que o inimigo está
-        const hitLeft = player.angle < 0 && enemy.side === "left" && enemy.body[0] < playerX;
-        const hitRight = player.angle > 0 && enemy.side === "right" && enemy.body[0] > playerX;
+        const hitLeft = player.angle < 0 && enemy.body[0] < playerX;
+        const hitRight = player.angle > 0 && enemy.body[0] > playerX;
 
         if ((hitLeft || hitRight) && distanceToPlayer <= attackRange) {
           entities.global.triggerShake();
@@ -79,25 +92,46 @@ const EnemyManager = (entities) => {
     }
   });
 
-  // --- Sistema de Spawn de Inimigos (Mantido e Otimizado) ---
+
   entities.global.timeCounted++;
   if (entities.global.timeCounted > entities.global.cooldown) {
-    const Timers = [30,45,60];
+    const Timers = [40,50,60];
+    const SpawnPosition =[[20,205],[380,205],[330+Math.random()*50,20],[20+Math.random()*50,20]]
+    const Colors = [
+  // Tons Originais
+
+  // Tons Vibrantes e Neon (Todos reduzidos para o teto de 1.3)
+  { color: '#ff0055', speed: 1.3 }, // Rosa Choque
+  { color: '#a020f0', speed: 1.3 }, // Roxo Neon
+
+  // Tons Pastéis e Suaves
+  { color: '#ffb3ba', speed: 0.7 }, // Rosa Pastel
+  { color: '#baffc9', speed: 1.1 }, // Verde Menta
+  { color: '#bae1ff', speed: 1.3 }, // Azul Bebê
+  { color: '#e8c4ff', speed: 0.8 }, // Lavanda
+  { color: '#ffdfba', speed: 1.3 }, // Pêssego (Limitado ao máximo)
+
+  // Tons Profundos e Sóbrios
+  { color: '#3c3c68ff', speed: 0.7 }, // Azul Noturno
+  { color: '#0c4c99ff', speed: 1.3 }, // Azul Profundo (Limitado ao máximo)
+  { color: '#e94560', speed: 1.3 },   // Carmim (Limitado ao máximo)
+  { color: '#314888ff', speed: 1.2 }  // Escuro Sóbrio
+];
+
+    const CorDefinida = Colors[Math.floor(Math.random()*Colors.length)]
     entities.global.cooldown = Timers[Math.floor(Math.random() * Timers.length)];
     entities.global.timeCounted = 0;
-    
+    const body = SpawnPosition[Math.floor(Math.random()*SpawnPosition.length)]
+
     EnemyID++;
-    const side = Math.random() > 0.5 ? "right" : "left";
-    let x = side === "left" ? 20 : 380;
     const enemyCod = "enemy_" + EnemyID;
 
     entities[enemyCod] = {
-      body: [x, 200],
+      body: body,
       size: [10,10],
-      backgroundColor: "blue",
+      backgroundColor: CorDefinida.color,
       angle: 0,
-      side: side,
-      vel: 1,
+      vel: CorDefinida.speed,
       renderer: <Box />,
     };
   }
@@ -113,9 +147,10 @@ export default function SwordSide() {
         player: {
             body: [200, 185], //defino as posições
             size: [2, 50], //defino o tamanho do objeto
-            backgroundColor: 'red',
+            backgroundColor: '#ff0000',
             renderer: <Box />,
             angle: 0,
+            colodown:30,
             isAttacking: false, // Nova flag para controle de colisão de dano
             SetDirection: function (dir) { // Mudado para function para o 'this' referenciar a entidade atualizada do motor
                 if (dir === "ArrowLeft" || dir === "a") {
@@ -132,15 +167,21 @@ export default function SwordSide() {
             },
         },
         global: {
-            triggerShake: () => { setIsShaking(true); setTimeout(() => setIsShaking(false), 300); },
+            triggerShake: () => {setIsShaking(true); setTimeout(() => setIsShaking(false), 300); },
             cooldown: 60,
             timeCounted: 0,
+        },
+        ground: {
+            body: [200, 210], //defino as posições
+            size: [400, 200], //defino o tamanho do objeto
+            backgroundColor: '#464646',
+            renderer: <Box/>
         }
     };
 
 
     return (
-        <div className={isShaking ? "screen-shake" : ""} style={{ display: "inline-block" }}>
+        <div className={isShaking ? "screen-shake-sword" : ""} style={{ display: "inline-block" }}>
             <GameEngine
                 style={{
                     width: 400,
