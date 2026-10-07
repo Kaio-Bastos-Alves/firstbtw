@@ -31,23 +31,43 @@ const Box = (props) => {
 
 // O sistema precisa retornar as entidades modificadas a cada tick
 const PlayerMovement = (entities, { input }) => {
-    const { payload } = input.find(x => x.name === "onKeyDown") || { payload: {} };
-    entities.player.colodown++
-    console.log
-    if(entities.player.colodown > 20) return entities
-    if (payload.key == "a" || payload.key == "ArrowLeft" || payload.key == "d" || payload.key == "ArrowRight") {
-        const existemInimigosNaTela = Object.keys(entities).some(key => key.startsWith('enemy_') && entities[key].body[0] >200 || entities[key].body[0]<200);
-        if(existemInimigosNaTela){
-        entities.player.SetDirection(payload.key)
-        }
-        else{
-            entities.player.backgroundColor = '#ff000065'
-            entities.player.colodown = 0;
-            return entities
-        }
+  const { payload } = input.find(x => x.name === "onKeyDown") || { payload: {} };
+
+  entities.player.colodown++;
+  if (entities.player.colodown < 20) return entities;
+
+  const validKeys = ["a", "ArrowLeft", "d", "ArrowRight"];
+  if (validKeys.includes(payload.key)) {
+    
+    // DEFINA A DISTÂNCIA MÁXIMA EM PIXELS (Exemplo: 150px)
+    const DISTANCIA_MAXIMA = entities.player.size[1] + 5; 
+    const playerX = entities.player.body[0];
+
+    // Verifica se existe algum inimigo dentro do raio de distância
+    const inimigoProximo = Object.keys(entities).some(key => {
+      if (key.startsWith('enemy_') && entities[key].body) {
+        const enemyX = entities[key].body[0];
+        const distancia = Math.abs(playerX - enemyX);
+        
+        return distancia <= DISTANCIA_MAXIMA;
+      }
+      return false;
+    });
+
+    if (inimigoProximo) {
+      entities.player.SetDirection(payload.key);
+      entities.player.backgroundColor = '#ff0000';
+    } else {
+      entities.player.backgroundColor = '#ff000065';
+      entities.player.colodown = 0;
+      return entities;
     }
-    return entities;
+  }
+
+  return entities;
 };
+
+
 
 const EnemyManager = (entities) => {
   const player = entities.player;
@@ -95,7 +115,7 @@ const EnemyManager = (entities) => {
 
   entities.global.timeCounted++;
   if (entities.global.timeCounted > entities.global.cooldown) {
-    const Timers = [40,50,60];
+    const Timers = [50,55,60];
     const SpawnPosition =[[20,205],[380,205],[330+Math.random()*50,20],[20+Math.random()*50,20]]
     const Colors = [
   // Tons Originais
